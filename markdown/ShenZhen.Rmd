@@ -1,0 +1,61 @@
+---
+title: "ShenZhen"
+author: "JACKTANSNAKE"
+date: "2020/5/21"
+output: html_document
+---
+
+```{r message = FALSE, Warning = FALSE, echo = FALSE}
+library(readxl)
+library(readr)
+library(tidyverse)
+library(ggmap)
+library(ggthemes)
+library(maps) 
+library(openintro)
+library(tmaptools)
+library(httr)
+```
+
+```{r}
+ShenZhenYangLaoJiGou <- read_excel("../dataset/ShenZhenYangLaoJiGou.xlsx")
+```
+
+```{r}
+register_google(key = "AIzaSyBvmJ3i5S_-GuGKeho8YD7ZzBG7lDXI3Go", write = TRUE)
+```
+
+```{r}
+set_config(
+  use_proxy(url="127.0.0.1", port=1080, username="JACKTANSNAKE",password="12q12q12q")
+)
+df <- geocode(ShenZhenYangLaoJiGou$Address)
+```
+
+```{r}
+Facility <- cbind(ShenZhenYangLaoJiGou, df)
+```
+
+```{r message = FALSE, echo = FALSE, warning = FALSE}
+get_location_bbox <- function (place) {
+  # Returns a bounding box around a place, such as "United States"
+  # suitable for passing to the location parameter of ggmap
+  if (tolower(place) == "world") {   # Earth is funny because of the bounds so handle it separately
+    bbox <- c(-180, 179, 82.1, -57)
+  } else {
+    res <- geocode_OSM(place)
+    bbox <- c(res$bbox$xmin, res$bbox$xmax, res$bbox$ymax, res$bbox$ymin)
+  }
+  names(bbox) <- c("left", "right", "top", "bottom")
+  return (bbox)
+}
+```
+
+```{r warning = FALSE, message = FALSE}
+bbox_ShenZhen <- c(left = 113.75, bottom = 22.45, right = 114.30, top = 22.70)
+map_ShenZhen <- get_map(bbox_ShenZhen)
+ggmap(map_ShenZhen) + 
+  geom_point(data = Facility,
+             aes(x = lon, y = lat),
+             alpha = .4)
+```
