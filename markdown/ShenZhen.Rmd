@@ -18,22 +18,22 @@ library(httr)
 ```
 
 ```{r}
-ShenZhenYangLaoJiGou <- read_excel("../dataset/ShenZhenYangLaoJiGou.xlsx")
+Facility <- read_excel("../dataset/Facility.xlsx")
 ```
 
 ```{r}
 register_google(key = "AIzaSyBvmJ3i5S_-GuGKeho8YD7ZzBG7lDXI3Go", write = TRUE)
 ```
 
-```{r}
+```{r message = FALSE, warning = FALSE}
 set_config(
   use_proxy(url="127.0.0.1", port=1080, username="JACKTANSNAKE",password="12q12q12q")
 )
-df <- geocode(ShenZhenYangLaoJiGou$Address)
+df <- geocode(Facility$Address)
 ```
 
 ```{r}
-Facility <- cbind(ShenZhenYangLaoJiGou, df)
+Facility_Complete <- cbind(Facility, df)
 ```
 
 ```{r message = FALSE, echo = FALSE, warning = FALSE}
@@ -51,11 +51,11 @@ get_location_bbox <- function (place) {
 }
 ```
 
-```{r warning = FALSE, message = FALSE}
+```{r message = FALSE}
 bbox_ShenZhen <- c(left = 113.75, bottom = 22.45, right = 114.30, top = 22.70)
 map_ShenZhen <- get_map(bbox_ShenZhen)
 ggmap(map_ShenZhen) + 
-  geom_point(data = Facility,
+  geom_point(data = Facility_Complete,
              aes(x = lon, y = lat),
              alpha = .4)
 ```
