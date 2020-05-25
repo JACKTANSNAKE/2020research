@@ -15,6 +15,7 @@ library(maps)
 library(openintro)
 library(tmaptools)
 library(httr)
+library(lubridate)
 ```
 
 ```{r}
@@ -59,3 +60,12 @@ ggmap(map_ShenZhen) +
              aes(x = lon, y = lat),
              alpha = .4)
 ```
+
+```{r}
+Facility_new <- Facility_Complete %>% 
+  mutate(as.factor(Period)) %>%
+  drop_na(Period) %>%
+  group_by(Period) %>%
+  summarise(Period_Bed = sum(Bed))
+```
+
