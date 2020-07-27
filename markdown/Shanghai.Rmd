@@ -1,7 +1,7 @@
 ---
-title: "ShenZhen"
+title: "Shanghai"
 author: "JACKTANSNAKE"
-date: "2020/5/21"
+date: "2020/6/25"
 output: html_document
 ---
 
@@ -28,14 +28,6 @@ Facility_Shanghai <- Facility %>%
 ```
 
 ```{r}
-Facility_Shanghai %>%
-  group_by(Year) %>%
-  summarise(sum = sum(Bed))
-  
-```
-
-
-```{r}
 register_google(key = "AIzaSyBvmJ3i5S_-GuGKeho8YD7ZzBG7lDXI3Go", write = TRUE)
 ```
 
@@ -43,11 +35,11 @@ register_google(key = "AIzaSyBvmJ3i5S_-GuGKeho8YD7ZzBG7lDXI3Go", write = TRUE)
 set_config(
   use_proxy(url="127.0.0.1", port=1080, username="JACKTANSNAKE",password="12q12q12q")
 )
-df <- geocode(Facility$Address)
+df <- geocode(Facility_Shanghai$Address)
 ```
 
 ```{r}
-Facility_Complete <- cbind(Facility, df)
+Facility_Complete <- cbind(Facility_Shanghai, df)
 ```
 
 ```{r message = FALSE, echo = FALSE, warning = FALSE}
@@ -66,19 +58,25 @@ get_location_bbox <- function (place) {
 ```
 
 ```{r message = FALSE}
-bbox_ShenZhen <- c(left = 113.75, bottom = 22.45, right = 114.30, top = 22.70)
-map_ShenZhen <- get_map(bbox_ShenZhen)
-ggmap(map_ShenZhen) + 
-  geom_point(data = Facility_Complete,
-             aes(x = lon, y = lat),
-             alpha = .4)
+bbox_Shanghai <- c(left = 120.90, bottom = 30.70, right = 121.90, top = 31.90)
+map_Shanghai <- get_map(bbox_Shanghai)
 ```
 
 ```{r}
-Facility_new <- Facility_Complete %>% 
-  mutate(as.factor(Period)) %>%
-  drop_na(Period) %>%
-  group_by(Period) %>%
-  summarise(Period_Bed = sum(Bed))
+ggmap(map_Shanghai) + 
+  geom_point(data = Facility_Complete,
+             aes(x = lon, y = lat, color = Class),
+             alpha = .5)
 ```
 
+```{r}
+Facility_Complete %>%
+  group_by(Class) %>%
+  summarise(n = n())
+```
+
+```{r}
+Facility_Shanghai %>%
+  group_by(Year) %>%
+  summarise(sum = sum(Bed))
+```
