@@ -16,16 +16,53 @@ library(openintro)
 library(tmaptools)
 library(httr)
 library(lubridate)
+library(caret)
 ```
 
 ```{r}
 Facility <- read_excel("../dataset/Facility.xlsx")
+```
+
+变量名        | 描述
+------------- | --------------------
+`Name`        | 机构名称
+`Period`      | 创办的时间段（无用）
+`Year_Start`  | 创办的年月日
+`City`        | 所在城市
+`District`    | 所在城市的行政区
+`Class`       | 机构性质
+`Bed`         | 床位数
+`Area`        | 占地面积
+`Address`     | 地址
+`Star_Level`  | 星级
+
+```{r}
+Facility_Shanghai <- Facility %>%
+  filter(City == "上海") %>%
+  mutate(Year_Start = mdy(Year_Start)) %>%
+  mutate(Year = year(Year_Start))
+
+Facility_Shanghai %>%
+  summarise(number = n())
+
+Facility_Shanghai %>%
+  summarise(total_bed = sum(Bed))
+```
+
+根据上海市民政局的数据，上海总共有722家养老机构，总共有130106张床位。
+
+```{r}
 Facility_Shanghai <- Facility %>%
   filter(City == "上海") %>%
   mutate(Year_Start = mdy(Year_Start)) %>%
   mutate(Year = year(Year_Start))%>%
   drop_na(Year)
+
+Facility_Shanghai %>%
+  summarise(total_bed = sum(Bed))
 ```
+
+首先我们筛除并未能搜集到创办年月的机构，以便后面建立模型。剩余649家机构。
 
 ```{r}
 register_google(key = "AIzaSyBvmJ3i5S_-GuGKeho8YD7ZzBG7lDXI3Go", write = TRUE)
@@ -69,6 +106,8 @@ ggmap(map_Shanghai) +
              alpha = .5)
 ```
 
+此为根据上海市每一家机构的地址所产生的经纬度建立的一份养老地图。其中，机构以养老机构的属性来区分。公办有155家，公建民营有49家，民办有363家，没能查到的有82家。
+
 ```{r}
 Facility_Complete %>%
   group_by(Class) %>%
@@ -76,7 +115,75 @@ Facility_Complete %>%
 ```
 
 ```{r}
-Facility_Shanghai %>%
+Facility_filtered <- Facility_Shanghai %>%
   group_by(Year) %>%
-  summarise(sum = sum(Bed))
+  summarise(Bed_year = sum(Bed)) %>%
+  filter(Year != c(1957, 1958, 1968, 1971, 2019))
 ```
+
+因为上海市经济数据来源为上海市统计年鉴，而其中只包含了从1978年至2018年的详细人口数据，故排除原数据集中1957，1958，1968，1971及2019年创办的养老机构。接下来，把每个创办年份相同的机构的床位数相加，就得到了当年的床位增量了。
+
+```{r}
+Facility_filtered %>%
+  summarise(total_bed = sum(Bed_year))
+```
+
+在剔除上述年份后，还剩下总床位数：120034。
+
+```{r}
+Shanghai_auxilary <- read_excel("../dataset/Shanghai_EconomicsAndDemographics.xlsx",col_types = c("numeric", "numeric", "numeric", 
+        "numeric", "numeric", "numeric", 
+        "numeric", "numeric", "numeric", 
+        "numeric", "numeric", "numeric", 
+        "numeric", "numeric", "numeric", 
+        "numeric"))
+```
+
+变量名                | 描述
+--------------------- | -----------------------------------------------------------------------------------
+`Year`                | 年份
+`Urbanization`        | 城镇化率
+`Permanent——resid`    | 常住人口（万）
+`Registered_resid`    | 户籍人口（万）
+`60_plus`             | 60岁以上人口（万）
+`60_plus_rate`        | 60岁以上人口占总人口百分比(*07年以前没有记录60岁以上人口的成分，缺失部分为手动估算)
+`60~64`               | 60~64岁人口数量（万）
+`65~79`               | 65~79岁人口数量（万）
+`80_plus`             | 80岁以上人口数量（万）
+`GDP`                 | 上海国民生产总值（亿）
+`1st`                 | 第一产业产值（亿）
+`2nd`                 | 第二产业产值（亿）
+`3rd`                 | 第三产业产值（亿）
+`GDP_Per_Person`      | 上海人均国名生产总值
+`Government_Income`   | 财政收入（亿）
+`Government_Expense`  | 财政支出（亿）
+
+```{r}
+head(Shanghai_auxilary)
+```
+
+```{r}
+Shanghai <- Facility_filtered %>%
+left_join(Shanghai_auxilary, by = "Year") %>%
+  select(-`60~64`, -`65~79`, -`80_plus`, -Year) 
+Shanghai %>%
+  summarise(total_bed = sum(Bed_year))
+```
+
+那么在我们的数据集中有几个不完整的数据，分别是`60~64`, `65~79`, `80_plus`，所以把他们去除。然后在建立模型之前，再把年份这个很具迷惑性的数据删除。这样，准备工作就完成了。
+
+```{r}
+set.seed(101010)
+ols_model <- train(
+  Bed_year ~ `60_plus`,
+  data = Shanghai, 
+  method = "lm",
+  trControl = trainControl(method = "cv", 
+                           number = 10), 
+  na.action = na.omit
+)
+
+summary(ols_model)
+```
+
+我们建立单一变量的模型，以每年的床位数为应变量，每年的60岁以上老人数量为自变量。可以发现，这两者之间是具备统计意义上的关联性的，且为正相关。可以理解为60岁老人每增加一万人，养老床位数就增加23.4张左右。
