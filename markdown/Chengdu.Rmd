@@ -1,0 +1,104 @@
+---
+title: "Chengdu"
+author: "JACKTANSNAKE"
+date: "2020/8/1"
+output: html_document
+---
+
+```{r message = FALSE, Warning = FALSE, echo = FALSE}
+library(readxl)
+library(readr)
+library(tidyverse)
+library(ggmap)
+library(ggthemes)
+library(maps) 
+library(openintro)
+library(tmaptools)
+library(httr)
+library(lubridate)
+library(caret)
+```
+
+```{r}
+Facility <- read_excel("../dataset/Facility.xlsx")
+```
+
+变量名        | 描述
+------------- | --------------------
+`Name`        | 机构名称
+`Period`      | 创办的时间段（无用）
+`Year_Start`  | 创办的年月日
+`City`        | 所在城市
+`District`    | 所在城市的行政区
+`Class`       | 机构性质
+`Bed`         | 床位数
+`Area`        | 占地面积
+`Address`     | 地址
+`Star_Level`  | 星级
+
+```{r}
+Facility_Chengdu <- Facility %>%
+  filter(City == "成都") %>%
+  mutate(Year_Start = mdy(Year_Start)) %>%
+  mutate(Year = year(Year_Start))
+
+Facility_Chengdu %>%
+  summarise(number = n())
+
+Facility_Chengdu %>%
+  summarise(total_bed = sum(Bed))
+```
+根据养老网的数据显示，目前成都能查得到地址的机构有201家（网站显示有213家，但其中十二家查无地址），共59109张床位（民政厅项目按500张计算）。
+
+```{r}
+register_google(key = "AIzaSyBvmJ3i5S_-GuGKeho8YD7ZzBG7lDXI3Go", write = TRUE)
+```
+
+```{r message = FALSE, warning = FALSE}
+set_config(
+  use_proxy(url="127.0.0.1", port=1080, username="JACKTANSNAKE",password="12q12q12q")
+)
+df <- geocode(Facility_Chengdu$Address)
+```
+
+```{r}
+Facility_Complete <- cbind(Facility_Chengdu, df)
+```
+
+```{r}
+Facility_Complete <- Facility_Complete %>%
+  filter(Bed < 5000)
+```
+
+这里去除一个12500张床位老年公寓一个5000张床位老年公寓，因为数量过大影响后面画图。
+
+```{r message = FALSE, echo = FALSE, warning = FALSE}
+get_location_bbox <- function (place) {
+  # Returns a bounding box around a place, such as "United States"
+  # suitable for passing to the location parameter of ggmap
+  if (tolower(place) == "world") {   # Earth is funny because of the bounds so handle it separately
+    bbox <- c(-180, 179, 82.1, -57)
+  } else {
+    res <- geocode_OSM(place)
+    bbox <- c(res$bbox$xmin, res$bbox$xmax, res$bbox$ymax, res$bbox$ymin)
+  }
+  names(bbox) <- c("left", "right", "top", "bottom")
+  return (bbox)
+}
+```
+
+```{r message = FALSE}
+bbox_Chengdu <- c(left = 103.25, bottom = 30.15, right = 104.6, top = 31.15)
+map_Chengdu_satellite <- get_map(bbox_Chengdu, maptype = "satellite", source = "osm")
+```
+
+```{r}
+ggmap(map_Chengdu_satellite) + 
+  geom_point(data = Facility_Complete,
+             aes(x = lon, y = lat, color = Class, size = Bed),
+             alpha = .5)+
+  geom_point(data = Facility_Complete,
+             aes(x = 103.7494, y = 30.65515, color = "red"))
+```
+
+图上各机构性质用颜色区分，体量用大小区分，其中中涧偏左大红色点为民政厅项目所在位置。
