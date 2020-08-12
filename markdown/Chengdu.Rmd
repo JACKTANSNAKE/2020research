@@ -40,7 +40,9 @@ Facility <- read_excel("../dataset/Facility.xlsx")
 Facility_Chengdu <- Facility %>%
   filter(City == "成都") %>%
   mutate(Year_Start = mdy(Year_Start)) %>%
-  mutate(Year = year(Year_Start))
+  mutate(Year = year(Year_Start)) %>%
+  mutate_if(is.numeric, ~ replace_na(., 0) %>% 
+                             replace(., is.infinite(.), 1))
 
 Facility_Chengdu %>%
   summarise(number = n())
