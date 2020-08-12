@@ -40,17 +40,18 @@ Facility <- read_excel("../dataset/Facility.xlsx")
 Facility_Chengdu <- Facility %>%
   filter(City == "成都") %>%
   mutate(Year_Start = mdy(Year_Start)) %>%
-  mutate(Year = year(Year_Start)) %>%
-  mutate_if(is.numeric, ~ replace_na(., 0) %>% 
-                             replace(., is.infinite(.), 1))
+  mutate(Year = year(Year_Start))
 
-Facility_Chengdu %>%
+Facility_Chengdu_not_imputed <- Facility_Chengdu %>%
+  drop_na(Bed)
+
+Facility_Chengdu_not_imputed %>%
   summarise(number = n())
 
-Facility_Chengdu %>%
+Facility_Chengdu_not_imputed %>%
   summarise(total_bed = sum(Bed))
 ```
-根据养老网的数据显示，目前成都能查得到地址的机构有201家（网站显示有213家，但其中十二家查无地址），共59109张床位（民政厅项目按500张计算）。
+上面所写409家机构为网上有具体床位数描述的机构，共87367张有信息的床位。接下来将会对缺失床位数信息的机构根据已有建筑面积来进行推算。推算参考有床位机构的床位数与建筑面积关系。
 
 ```{r}
 register_google(key = "AIzaSyBvmJ3i5S_-GuGKeho8YD7ZzBG7lDXI3Go", write = TRUE)
