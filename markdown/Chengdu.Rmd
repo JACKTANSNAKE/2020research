@@ -17,6 +17,8 @@ library(tmaptools)
 library(httr)
 library(lubridate)
 library(caret)
+library(VIM)
+library(infer)
 ```
 
 ```{r}
@@ -51,7 +53,58 @@ Facility_Chengdu_not_imputed %>%
 Facility_Chengdu_not_imputed %>%
   summarise(total_bed = sum(Bed))
 ```
+
 上面所写409家机构为网上有具体床位数描述的机构，共87367张有信息的床位。接下来将会对缺失床位数信息的机构根据已有建筑面积来进行推算。推算参考有床位机构的床位数与建筑面积关系。
+
+```{r}
+Facility_Chengdu_for_ols <- Facility_Chengdu_not_imputed %>%
+  drop_na(Construction_Area)
+
+Facility_Chengdu_for_ols %>%
+  summarise(number = n())
+
+Facility_Chengdu_for_ols %>%
+  summarise(total_bed = sum(Bed))
+```
+
+```{r}
+set.seed(888)
+Bed_Construction_Area_model <-  train(
+  Bed ~ Construction_Area,
+  data = Facility_Chengdu_for_ols, 
+  method = "lm",
+  trControl = trainControl(method = "cv", 
+                           number = 10), 
+  na.action = na.omit
+)
+
+summary(Bed_Construction_Area_model)
+```
+
+```{r}
+Facility_Chengdu_for_prediction <- Facility_Chengdu %>%
+  filter(is.na(Bed)) %>%
+  drop_na(Construction_Area) 
+
+Facility_Chengdu_for_prediction <- Facility_Chengdu_for_prediction %>%
+  mutate(Bed = trunc(predict(Bed_Construction_Area_model, newdata = Facility_Chengdu_for_prediction))) %>%
+  select(Name, Bed, Year_Start, District, Class, Address, Year)
+```
+ 
+```{r}
+Facility_Chengdu_imputed <- Facility_Chengdu %>%
+  left_join(Facility_Chengdu_for_prediction, by = c("Name", "Year_Start", "District", "Class", "Address", "Year")) %>%
+  mutate(Bed = ifelse(is.na(Bed.x),Bed.y,Bed.x)) %>%
+  select(-Bed.x, -Bed.y) %>%
+  mutate(Bed = ifelse(is.na(Bed), 0, Bed)) %>%
+  mutate(Address = ifelse(is.na(Address), "无", Address))
+
+Facility_Chengdu_imputed %>%
+  summarise(number = n())
+
+Facility_Chengdu_imputed %>%
+  summarise(total_bed = sum(Bed))
+```
 
 ```{r}
 register_google(key = "AIzaSyBvmJ3i5S_-GuGKeho8YD7ZzBG7lDXI3Go", write = TRUE)
@@ -61,11 +114,11 @@ register_google(key = "AIzaSyBvmJ3i5S_-GuGKeho8YD7ZzBG7lDXI3Go", write = TRUE)
 set_config(
   use_proxy(url="127.0.0.1", port=1080, username="JACKTANSNAKE",password="12q12q12q")
 )
-df <- geocode(Facility_Chengdu$Address)
+df <- geocode(Facility_Chengdu_imputed$Address)
 ```
 
 ```{r}
-Facility_Complete <- cbind(Facility_Chengdu, df)
+Facility_Complete <- cbind(Facility_Chengdu_imputed, df)
 ```
 
 ```{r}
@@ -91,7 +144,7 @@ get_location_bbox <- function (place) {
 ```
 
 ```{r message = FALSE}
-bbox_Chengdu <- c(left = 103.25, bottom = 30.15, right = 104.6, top = 31.15)
+bbox_Chengdu <- c(left = 103.22, bottom = 30.12, right = 104.7, top = 31.2)
 map_Chengdu_satellite <- get_map(bbox_Chengdu, maptype = "satellite", source = "osm")
 ```
 
