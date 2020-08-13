@@ -5,6 +5,7 @@ date: "2020/8/1"
 output: html_document
 ---
 
+## 读取包
 ```{r message = FALSE, Warning = FALSE, echo = FALSE}
 library(readxl)
 library(readr)
@@ -17,27 +18,31 @@ library(tmaptools)
 library(httr)
 library(lubridate)
 library(caret)
-library(VIM)
-library(infer)
 ```
 
+## 读取数据
 ```{r}
 Facility <- read_excel("../dataset/Facility.xlsx")
+Hospital <- read_excel("../dataset/Chengdu_Hospital_All.xls")
+demographics <- read_excel("../dataset/Chengdu_demographics_2019.xlsx")
 ```
 
-变量名        | 描述
-------------- | --------------------
-`Name`        | 机构名称
-`Period`      | 创办的时间段（无用）
-`Year_Start`  | 创办的年月日
-`City`        | 所在城市
-`District`    | 所在城市的行政区
-`Class`       | 机构性质
-`Bed`         | 床位数
-`Area`        | 占地面积
-`Address`     | 地址
-`Star_Level`  | 星级
+变量名              | 描述
+------------------- | --------------------
+`Name`              | 机构名称
+`Period`            | 创办的时间段（无用）
+`Year_Start`        | 创办的年月日
+`City`              | 所在城市
+`District`          | 所在城市的行政区
+`Class`             | 机构性质
+`Bed`               | 床位数
+`Remaining_Bed`     | 剩余床位数
+`Construction_Area` | 建筑面积
+`Floor_Space`       | 占地面积
+`Address`           | 地址
+`Star_Level`        | 星级
 
+## 前期准备
 ```{r}
 Facility_Chengdu <- Facility %>%
   filter(City == "成都") %>%
@@ -54,57 +59,133 @@ Facility_Chengdu_not_imputed %>%
   summarise(total_bed = sum(Bed))
 ```
 
-上面所写409家机构为网上有具体床位数描述的机构，共87367张有信息的床位。接下来将会对缺失床位数信息的机构根据已有建筑面积来进行推算。推算参考有床位机构的床位数与建筑面积关系。
+上面所写410家机构(包含四川省民政厅项目，按1000张床位计算)为网上有具体床位数描述的机构，共88367张有信息的床位。接下来将会对缺失床位数信息的机构根据已有建筑面积来进行推算。推算参考有床位机构的床位数与建筑面积关系。
 
 ```{r}
-Facility_Chengdu_for_ols <- Facility_Chengdu_not_imputed %>%
+Facility_Chengdu_for_ols_large <- Facility_Chengdu_not_imputed %>%
   drop_na(Construction_Area)
 
-Facility_Chengdu_for_ols %>%
+Facility_Chengdu_for_ols_large %>%
   summarise(number = n())
 
-Facility_Chengdu_for_ols %>%
+Facility_Chengdu_for_ols_large %>%
   summarise(total_bed = sum(Bed))
+
+Facility_Chengdu_for_ols_large %>%
+  summarise(total_Construction_Area = sum(Construction_Area))
 ```
+
+这一步我们在筛选所有有床位数的机构中，建筑面积不为空的机构。其中共有302家机构，共54524张床位可与共1918276$m^2$的建筑面积来建立简单模型。
+
+## 建立预测模型
+在这一步中，我们将通过建立一个床位数与建筑面积的简单的预测模型，来为缺失床位数但有建筑面积的机构进行预测。这里，我们将建立两个模型。其一为用所有302家可用机构建立，但我们预测将会夸大每一家被预测机构的床位数（在收集数据的时候我们发现，大部分缺失床位数的机构的建筑面积都为1000$m^2$左右的日间照料或是社区养老机构，本身床位数的公摊面积会大一些。而这302家里有大部分是大型的且老的护理院，养老院，其床位公摊面积都偏小。所以使用公摊面积小的数据来预测公摊面积应该比较大的机构的数据会导致床位数的夸大）。其二，为了解决第一个模型里的问题，我们考虑筛选302家机构里建筑面积比较小的来建立模型并进行预测。
+
+### 大模型预测
 
 ```{r}
 set.seed(888)
-Bed_Construction_Area_model <-  train(
+Bed_Construction_Area_model_large <-  train(
   Bed ~ Construction_Area,
-  data = Facility_Chengdu_for_ols, 
+  data = Facility_Chengdu_for_ols_large, 
   method = "lm",
   trControl = trainControl(method = "cv", 
                            number = 10), 
   na.action = na.omit
 )
 
-summary(Bed_Construction_Area_model)
+summary(Bed_Construction_Area_model_large)
 ```
+
+上为使用全302家机构建立的单变量模型。从统计角度来解释，建筑面积每增加1$m^2$,该机构床位数将增加0.01623张。值得一提的是，在该模型中，起始床位数（当建筑面积为0时）为77张，的确符合我们会夸大床位数的判断。
 
 ```{r}
 Facility_Chengdu_for_prediction <- Facility_Chengdu %>%
   filter(is.na(Bed)) %>%
-  drop_na(Construction_Area) 
+  drop_na(Construction_Area)
+```
 
-Facility_Chengdu_for_prediction <- Facility_Chengdu_for_prediction %>%
-  mutate(Bed = trunc(predict(Bed_Construction_Area_model, newdata = Facility_Chengdu_for_prediction))) %>%
+```{r}
+Facility_Chengdu_for_prediction_large <- Facility_Chengdu_for_prediction %>%
+  mutate(Bed = trunc(predict(Bed_Construction_Area_model_large, newdata = Facility_Chengdu_for_prediction))) %>%
   select(Name, Bed, Year_Start, District, Class, Address, Year)
 ```
  
+上两步我们在使用刚得到的模型进行预测。
+ 
 ```{r}
-Facility_Chengdu_imputed <- Facility_Chengdu %>%
-  left_join(Facility_Chengdu_for_prediction, by = c("Name", "Year_Start", "District", "Class", "Address", "Year")) %>%
+Facility_Chengdu_imputed_large <- Facility_Chengdu %>%
+  left_join(Facility_Chengdu_for_prediction_large, by = c("Name", "Year_Start", "District", "Class", "Address", "Year")) %>%
   mutate(Bed = ifelse(is.na(Bed.x),Bed.y,Bed.x)) %>%
   select(-Bed.x, -Bed.y) %>%
   mutate(Bed = ifelse(is.na(Bed), 0, Bed)) %>%
   mutate(Address = ifelse(is.na(Address), "无", Address))
 
-Facility_Chengdu_imputed %>%
+Facility_Chengdu_imputed_large %>%
   summarise(number = n())
 
-Facility_Chengdu_imputed %>%
+Facility_Chengdu_imputed_large %>%
   summarise(total_bed = sum(Bed))
 ```
+
+这一步我们在进行302家已有数据机构与被预测机构的整合。若到这一步还是没有床位数（本身没有床位数也没有建筑面积），就算为0。整合完共595家机构（应是593家，但其中有几家重名，导致整合的时候算法认为他们是不同的多出来两家），预计全成都共有109464张床位。
+
+### 小模型预测
+下面我们进行小模型的建立与预测。我们暂定筛选机构的标准为建筑面积小于3000$m^2$。
+
+```{r}
+Facility_Chengdu_for_ols_small <- Facility_Chengdu_not_imputed %>%
+  drop_na(Construction_Area) %>%
+  filter(Construction_Area < 3000)
+
+Facility_Chengdu_for_ols_small %>%
+  summarise(number = n())
+
+Facility_Chengdu_for_ols_small %>%
+  summarise(total_bed = sum(Bed))
+```
+
+302家机构筛选完共144家机构符合要求，共8473张床位。
+
+```{r}
+set.seed(888)
+Bed_Construction_Area_model_small <-  train(
+  Bed ~ Construction_Area,
+  data = Facility_Chengdu_for_ols_small, 
+  method = "lm",
+  trControl = trainControl(method = "cv", 
+                           number = 10), 
+  na.action = na.omit
+)
+
+summary(Bed_Construction_Area_model_small)
+```
+
+上为使用144家机构建立的单变量模型。从统计角度来解释，建筑面积每增加1$m^2$,该机构床位数将增加0.035张。值得一提的是，在该模型中，起始床位数（当建筑面积为0时）为8张，相较于前一个模型可能更加符合实际情况。
+
+```{r}
+Facility_Chengdu_for_prediction_small <- Facility_Chengdu_for_prediction %>%
+  mutate(Bed = trunc(predict(Bed_Construction_Area_model_small, newdata = Facility_Chengdu_for_prediction))) %>%
+  select(Name, Bed, Year_Start, District, Class, Address, Year)
+```
+ 
+```{r}
+Facility_Chengdu_imputed_small <- Facility_Chengdu %>%
+  left_join(Facility_Chengdu_for_prediction_small, by = c("Name", "Year_Start", "District", "Class", "Address", "Year")) %>%
+  mutate(Bed = ifelse(is.na(Bed.x),Bed.y,Bed.x)) %>%
+  select(-Bed.x, -Bed.y) %>%
+  mutate(Bed = ifelse(is.na(Bed), 0, Bed)) %>%
+  mutate(Address = ifelse(is.na(Address), "无", Address))
+
+Facility_Chengdu_imputed_small %>%
+  summarise(number = n())
+
+Facility_Chengdu_imputed_small %>%
+  summarise(total_bed = sum(Bed))
+```
+
+同上一个模型，这里我们使用小模型来预测。同样，整合完以后成都共595家（应是593家，理由同前一个模型），共106130张床位，相较于前一个模型的预测少了约3000张床位，总体影响不大，下面所有部分都将使用小模型预测结果。
+
+## 成都养老及医疗地图
 
 ```{r}
 register_google(key = "AIzaSyBvmJ3i5S_-GuGKeho8YD7ZzBG7lDXI3Go", write = TRUE)
@@ -114,11 +195,13 @@ register_google(key = "AIzaSyBvmJ3i5S_-GuGKeho8YD7ZzBG7lDXI3Go", write = TRUE)
 set_config(
   use_proxy(url="127.0.0.1", port=1080, username="JACKTANSNAKE",password="12q12q12q")
 )
-df <- geocode(Facility_Chengdu_imputed$Address)
+df <- geocode(Facility_Chengdu_imputed_small$Address)
+df_hospital <- geocode(Hospital$Address)
 ```
 
 ```{r}
-Facility_Complete <- cbind(Facility_Chengdu_imputed, df)
+Facility_Complete <- cbind(Facility_Chengdu_imputed_small, df)
+Hospital_Complete <- cbind(Hospital, df_hospital)
 ```
 
 ```{r}
@@ -152,9 +235,129 @@ map_Chengdu_satellite <- get_map(bbox_Chengdu, maptype = "satellite", source = "
 ggmap(map_Chengdu_satellite) + 
   geom_point(data = Facility_Complete,
              aes(x = lon, y = lat, color = Class, size = Bed),
-             alpha = .5)+
+             alpha = .5, shape = 19)+
   geom_point(data = Facility_Complete,
-             aes(x = 103.7494, y = 30.65515, color = "red"))
+             aes(x = 103.7494, y = 30.65515)) +
+  geom_point(data = Hospital_Complete,
+             aes(x = lon, y = lat), alpha = 0.5, shape = 23, size = 3)
+```
+上图为成都养老及医疗机构地图。途中圆圈代表养老机构，圆圈大小代表机构床位数。菱形代表医院。中间偏左黑点代表四川省民政厅项目所在地。
+
+## 图表分析
+
+### 成都养老床位区块化分析
+```{r warning = FALSE, message = FALSE}
+Facility_Chengdu_By_District <- Facility_Chengdu_imputed_small %>%
+  group_by(District) %>%
+  summarise(total_bed = sum(Bed))
+
+ggplot(data = Facility_Chengdu_By_District,
+       aes(x = District, y = total_bed)) +
+  geom_histogram(alpha = 0.5, color = "purple", fill = "yellow", stat = "identity")
+```
+上图为成都区划养老床位柱状图。
+
+```{r warning = FALSE, message = FALSE}
+Facility_Chengdu_By_District <- Facility_Chengdu_imputed_small %>%
+  group_by(District) %>%
+  summarise(number_facility = n())
+
+ggplot(data = Facility_Chengdu_By_District,
+       aes(x = District, y = number_facility)) +
+  geom_histogram(alpha = 0.5, color = "purple", fill = "yellow", stat = "identity")
 ```
 
-图上各机构性质用颜色区分，体量用大小区分，其中中涧偏左大红色点为民政厅项目所在位置。
+上图为成都区划养老机构数柱状图。
+综上两张图，民政厅项目所在地崇州市无论是从床位数还是机构数都属于整个成都的下游。人口方面以及老龄人口方面的图后面再补。
+
+### 成都医疗机构区块化分析
+```{r warning = FALSE, message=FALSE}
+Hospital %>% 
+  summarise(n = n())
+
+Hospital %>%
+  filter(Facility_Type == "康复医院")
+
+Hospital %>% 
+  filter(Name_Alternative == "成都市老年病医院（成都市第二干部疗养院）")
+
+Facility_Chengdu_imputed_small %>%
+  filter(Name == "四川赫尔森康复医院养老中心")
+
+Hospital_Chengdu_By_District <- Hospital %>%
+  group_by(District) %>%
+  summarise(number_facility = n())
+
+gerontology <- as.data.frame(grepl("老年病专业", Hospital$Medical_catalog))
+
+rehabilitation <- as.data.frame(grepl("康复医学科", Hospital$Medical_catalog))
+
+table(gerontology)["TRUE"]
+
+table(rehabilitation)["TRUE"]
+
+cbind(Hospital, gerontology) %>%
+  filter(`grepl("老年病专业", Hospital$Medical_catalog)` == TRUE) %>%
+  select(Name)
+
+cbind(Hospital, rehabilitation) %>%
+  filter(`grepl("康复医学科", Hospital$Medical_catalog)` == TRUE) %>%
+  select(Name)
+
+ggplot(data = Hospital_Chengdu_By_District,
+       aes(x = District, y = number_facility)) +
+  geom_histogram(alpha = 0.5, color = "purple", fill = "yellow", stat = "identity")
+```
+
+全成都市共有医疗机构104家，其中主要医疗资源集中在成都三环内的几个区（青羊区、金牛区、武侯区、成华区、温江区）。其中包括一家老年病医院位于温江区（三甲，总共有两个分院一个主院），一家康复医院位于武侯区（带有一个养老中心，15张床位）。在104家机构中，有52家医院拥有老年病专业科，以及44家医院拥有康复医学科（有大概10家三甲医院信息不在原始表上，所以不具备科室列表，大概率这几家应该都有这两个科）。带有这两个科的医院都列举在上。另医院名录可能并不是完整的，需要再跟卫计委或民政局确认一下。
+
+```{r Warning = FALSE, message=FALSE}
+Hospital_Chengdu_By_District <- Hospital %>%
+  group_by(District, Facility_Level) %>%
+  summarise(number_facility = n())
+
+ggplot(data = Hospital_Chengdu_By_District,
+       aes(x = Facility_Level, y = number_facility, fill = District)) +
+  geom_histogram(alpha = 0.5, stat = "identity", position = "stack", color = "Black")
+```
+
+从上图来看，民政厅所在崇州市医疗条件在全成都不属于特别好的，共有3家2级医院，1家三乙医院。
+
+## 崇州市人口角度分析
+
+```{r}
+Bed_Chengdu_by_District <- Facility_Chengdu_imputed_small %>%
+  group_by(District) %>%
+  summarise(bed = sum(Bed))
+
+Bed_Chengdu <- Facility_Chengdu_imputed_small %>%
+  summarise(bed = sum(Bed))
+
+demographics_Complete <- demographics %>%
+  left_join(Bed_Chengdu_by_District, by = "District")
+
+population <- demographics_Complete %>%
+  summarise(population = sum(Popularity))
+
+sixty_population <- demographics_Complete %>%
+  summarise(sixty_population = sum(`60_Popularity`))
+
+cbind(Bed_Chengdu, population, sixty_population) %>%
+  mutate(total_aging_percentage = sixty_population/population) %>%
+  mutate(Bed_per_60 = bed/sixty_population)
+
+demographics_Complete %>%
+  mutate(Bed_per_60 = bed/`60_Popularity`)
+```
+
+根据网上现有人口统计数据（大概是2016年或是2017年的，年鉴上没有按区分的人口，所以人口数量上可能还少了一点），整个成都大市范围拥有总人口17276000人，其中共有316042960岁以上老年人。整个成都大市范围老龄化率在0.1829375。根据上海市出台的“9073”规则来计算60岁以上老年人口人均床位数的话，成都老人均床位数0.033，基本达标。
+但是细化到每个区的话，老年人人均床位数达标的基本只有成都三环以内发达的区。四川省民政厅项目所在崇州县仅有很少的人均0.014张，而该区的老龄化率也达到了全成都最高的0.24的水平。
+
+```{r}
+ggplot(demographics_Complete, aes(x = District)) + 
+  geom_col(aes(y = `60_Popularity`/1000000), size = 1, color = "darkblue", fill = "white") +
+  geom_line(aes(y = aging_percentage), size = 1.5, color="red", group = 1) +
+  ylab("60岁以上老年人口（百万）/老龄化率") +
+  xlab("区")
+```
+
