@@ -1,0 +1,130 @@
+---
+title: "Assignment_#1_Responses_Jack_Tan"
+author: "JACKTANSNAKE"
+date: "2021/1/25"
+output: html_document
+---
+
+1. Lifetime data commonly occur in the engineering environment. In this example, from
+a Canadian aluminum smelter, alumina is liquified in a steel-lined box (or cell) which
+is built to withstand extremely high temperatures. In the smelting process, aluminium
+is produced as a byproduct when the cell functions like a battery with molten alumina
+as the electrolyte. The cell needs to be replaced when the carbon lining cracks, allowing impurities into the process. The failure time data listed here (also in Cell.csv)
+represent days of service until replacement for 17 cells: 1540, 1415, 660, 999, 1193,
+1006, 869, 1035, 797, 296, 775, 1424, 1169, 1500, 728, 670, 841.
+
+(a) Find a non-parametric estimate of the chance that a cell lasts at most 1175 days.
+
+(b) Fit an Exponential model, and a Weibull model, for these lifetimes, and use these
+two models to re-estimate the probability from (a).
+
+(c) Plot the empirical cumulative distribution function (ecdf) for this data. Add to
+this plot the estimated cumulative distribution functions using the Exponential
+and Weibull models. Based on the graph you created, which of these 3 models
+would you not feel comfortable using?
+
+(d) Would you say that a comparison of your answers to (a) and (b) would have led
+you to the same conclusion you arrived at in (c)? If so, explain why, and if not,
+discuss what you take away from this realization.
+
+(e) Find the mean failure time of these cells. What does this value correspond to in
+your graph from (c)?
+
+2. The data contained in Stroke.csv are from a study of the occurrence and risk factors
+for stroke in patients with no prior history of stroke. The variables are:
+T: Time until first stroke from baseline evaluation (in years)
+Censored: 1 = no stroke occurred during study , 0 = stroke occurred during study
+Age: Age of patient (in years)
+Sex: 0 = female , 1 = male
+SBP: systolic blood pressure
+DBP: diastolic blood pressure
+BMI: body mass index
+Smoke: 1 = current smoker , 0 = other
+ACH: Alcoholic drinking status (1 = current drinker , 0 = other)
+HDL: high density lipoprotein cholesterol
+LDL: low density lipoprotein cholesterol
+DM: Diabetes status (1 = yes , 0 = no)
+ALBU: albuminuria status (1 = normal , 2 = elevated , 3 = very high)
+
+If no stroke occurred during the study (i.e., if Censored = 1), the value of T represents
+a lower bound on the stroke-free time experienced by an individual. We have not yet
+seen how to handle such cases, thus, for now, we will ignore the Censored variable
+and assume that all values of T are exact stroke-free times.
+
+(a) Plot the ecdf of the stroke-free time experienced by a patient.
+
+(b) Add to the plot from (a) the estimated cumulative distribution functions using
+the Normal, and Weibull, models. Do these 2 models turn out to be very similar,
+or different, from each other?
+
+(c) If given the choice between using the ecdf model or the Normal/Weibull, why
+might we trust the ecdf model more?
+
+(d) Estimate the mean and median stroke-free time assuming the: (i) ecdf model,
+(ii) Normal model, and (iii) Weibull model.
+
+(e) Compare the ecdf of T for males and females. One way (of many) to do this is:
+`ggplot(data=Stroke,aes(x=T,color=factor(Sex))) + stat_ecdf() +
+scale_color_manual(labels=c("Female","Male"),values=c("black","red")) +
+ggtitle("") + ylab("Cumulative") + xlab("Time until first stroke") +
+guides(color=guide_legend(title="Sex"))`
+
+- Do you think Sex is a good explanatory variable for modeling time to first stroke?
+If so, which group has a shorter time to stroke?
+
+- Repeat this by comparing the stroke-free time for individuals with below average
+systolic blood pressure (SBP) vs. above average SBP.
+
+3. Answer the following conceptual short-answer questions:
+
+(a) The advantage of performing a parametric analysis is that, if the distribution
+choice is correct, estimates will typically have lower variability, and the procedure
+will thus have higher power. What is an advantage of performing a non-parametric
+analysis?
+
+(b) We have said that the rate of change of the cumulative distribution function
+(CDF) tells us how the density function looks. Thus, the density function is the
+of the CDF.
+
+Derivative
+
+4. Answer the following True/False questions:
+
+(a) True/False: To obtain an estimate of mean survival from a survival curve, we
+follow the value 0.5 on the y-axis until we hit the curve, then drop a perpendicular
+down to the x-axis and read off the corresponding x-value.
+
+False
+
+(b) True/False: To obtain an estimate of mean survival from a survival curve, we
+find the area under the curve.
+
+True
+
+(c) True/False: Depending on its parameters, the shape of a Normal can change.
+
+False
+
+(d) True/False: Depending on its parameter, the shape of an Exponential can change.
+
+False
+
+(e) True/False: Depending on its parameters, the shape of a Weibull can change.
+
+True
+
+(f) True/False: With appropriate choices of the parameters, a Weibull can look like
+an Exponential, or a Normal.
+
+True
+
+(g) True/False: It is possible for a survival curve to increase in a given interval.
+
+False
+
+(h) True/False: It is possible for a survival curve to be greater than 1.
+
+(i) True/False: It is possible for a density function to be greater than 1.
+
+(j) True/False: Obtaining a large enough sample size can make up for an incorrect
+parametric assumption.
