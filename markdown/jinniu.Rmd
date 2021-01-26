@@ -1,0 +1,69 @@
+---
+title: "Untitled"
+author: "JACKTANSNAKE"
+date: "2020/10/3"
+output: html_document
+---
+
+## 读取包
+```{r message = FALSE, Warning = FALSE, echo = FALSE}
+library(readxl)
+library(readr)
+library(tidyverse)
+library(ggmap)
+library(ggthemes)
+library(maps) 
+library(openintro)
+library(tmaptools)
+library(httr)
+library(lubridate)
+library(caret)
+```
+
+## 读取数据
+```{r}
+jinniu <- read_excel("~/2020research/2020research/dataset/jinniu.xlsx")
+```
+
+```{r}
+register_google(key = "AIzaSyBvmJ3i5S_-GuGKeho8YD7ZzBG7lDXI3Go", write = TRUE)
+```
+
+```{r message = FALSE, warning = FALSE}
+set_config(
+  use_proxy(url="127.0.0.1", port=1080, username="JACKTANSNAKE",password="12q12q12q")
+)
+df <- geocode(jinniu$Address)
+```
+
+```{r}
+jinniu_Complete <- cbind(jinniu, df)
+```
+
+```{r message = FALSE, echo = FALSE, warning = FALSE}
+get_location_bbox <- function (place) {
+  # Returns a bounding box around a place, such as "United States"
+  # suitable for passing to the location parameter of ggmap
+  if (tolower(place) == "world") {   # Earth is funny because of the bounds so handle it separately
+    bbox <- c(-180, 179, 82.1, -57)
+  } else {
+    res <- geocode_OSM(place)
+    bbox <- c(res$bbox$xmin, res$bbox$xmax, res$bbox$ymax, res$bbox$ymin)
+  }
+  names(bbox) <- c("left", "right", "top", "bottom")
+  return (bbox)
+}
+```
+
+```{r message = FALSE}
+bbox_Chengdu <- c(left = 103.9, bottom = 30.65, right = 104.2, top = 30.8)
+map_Chengdu_satellite <- get_map(bbox_Chengdu, maptype = "satellite", source = "osm")
+```
+
+```{r}
+ggmap(map_Chengdu_satellite) + 
+  geom_point(data = jinniu_Complete,
+             aes(x = lon, y = lat),
+             alpha = .5, shape = 19) +
+  geom_text(data = jinniu_Complete, aes(label = Name), hjust = 0, vjust = 0)
+```
