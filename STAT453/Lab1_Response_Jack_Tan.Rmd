@@ -1,0 +1,193 @@
+---
+title: "Lab_#1_Jack_Tan_Response"
+author: "JACKTANSNAKE"
+date: "2021/1/28"
+output: html_document
+---
+
+Instructions: To save your work for submission, please use R Markdown to create a file (preferably html or pdf). When you are ready, upload your work to our Moodle site using the link, “Lab # 1 Responses”.
+
+Dataset Description: Unemployment.csv contains information on 1055 layoff unemployment spells in the U.S. in 1980-81. If an individual was still unemployed at the end of
+the study, their data point is right-censored. In addition, several covariates were recorded for each subject. We will use this data to build models for the distribution of the length of unemployment spells. Each row of data has the following information (notice the absurdity of some of the variables, in particular, “Wife’s employment status”):
+
+`SubjectID`: A subject identifier
+
+`UnemSpell`: Length of unemployment (in weeks)
+
+`Censored`: Censoring indicator (0 = uncensored , 1 = censored)
+
+`Age`: Subject’s age (in years)
+
+`Sex`: 0 = male , 1 = female
+
+`Education`: Years of schooling
+
+`Race`: 0 = white , 1 = non-white
+
+`NumDependents`: Number of dependents
+
+`UI`: Unemployment insurance (0 = did not receive UI , 1 = received UI)
+
+`Married`: 0 = not married , 1 = married
+
+`CountyUnemRate`: County unemployment percentage
+
+`Homeowner`: 0 = no , 1 = yes
+
+`HourWageLastYear`: Average hourly earnings pervious year
+
+`WifeEmployed`: Wife’s employment status (0 = unemployed , 1 = employed)
+
+Reading the data into R and loading survival package: Type the following commands
+into your R Markdown file:
+
+```{r}
+Unemployment = read.csv("https://www.macalester.edu/~addona/Unemployment.csv")
+```
+
+```{r}
+library(survival)
+library(survminer)
+```
+
+
+1. Fit a Weibull model to the data using the survreg function.
+Note: The data file provides a censoring indicator (Censored). Remember that survreg
+takes as an input a failure (or “status”) indicator, i.e., it interprets 1 as uncensored
+and 0 as censored. Write your command accordingly.
+
+```{r}
+Unemployment <- Unemployment %>% 
+  mutate(Censored = ifelse(Censored == 0, 1, 0))
+```
+
+
+```{r}
+survreg(Surv(UnemSpell, Censored)~1, dist='weibull' , data=Unemployment)
+```
+
+2. In choosing between a Weibull model and an Exponential model, why is it “safer” to
+fit the Weibull model? What “cost” is there for choosing a Weibull model when an
+Exponential model might suffice?
+
+It is safer to fit Weibull model because Weibull models are generally more flexible than Exponential models, since it could also approximate Normal Distribution. The cost relates to the number of parameters that Weibull has. Since a weibull model has one more parameter than exponential, the model would have fewer degrees of freedom and the parameter estimates would thus have higher variability and would thus not give an estimate as "accurate" as an Exponential model does.  
+
+3. Use the model from 1. to plot the estimated Weibull CDF using the curve command.
+Note: Remember to transform the parameters returned by R before using them. Make
+this graph over the range 0 to 150, and give x and y labels inside the curve command
+as follows: ylab=‘Cumulative’ , xlab=‘Weeks’.
+
+```{r}
+a = 1/1.353461
+b = exp(2.987603)
+curve(pweibull(x, shape = a, scale = b), from = 0, to = 150, ylab="Cumulative" , xlab="Weeks")
+```
+
+
+4. Add the ecdf of the UnemSpell variable to the graph you created in 3. You can do this
+by typing: lines(ecdf(UnemSpell)) , but use the following command instead to make
+the graph easier to read:
+
+`lines(ecdf(Unemployment$UnemSpell), col="red", do.points=FALSE, verticals=TRUE)`
+
+```{r}
+curve(pweibull(x, shape = a, scale = b), from = 0, to = 150, ylab="Cumulative" , xlab="Weeks")
+lines(ecdf(Unemployment$UnemSpell), col="red", do.points=FALSE, verticals=TRUE)
+```
+
+
+5. Do the two curves from your graph in 4. match? Carefully explain why or why not?
+
+They do not match. The reason behind this is that when we us ecdf, it treats all the data points as exact data point and does not take censoring into consideration. But in the Weibull, we are taking account of the right censoring and this process is lengthening the survival time and thus makes the weibull curve systematically lower than the ecdf curve.
+
+6. Is the Weibull model suggesting longer or shorter unemployment spells than the ecdf?
+Why does this make sense?
+
+The weibull model suggests longer unemployment spells than the ecdf, because the weibull model takes censoring into account but the ecdf doesn't.
+
+7. Now use the survfit function to find the Kaplan-Meier estimate of the true unemployment duration survival curve.
+Then plot this Kaplan-Meier curve (which I named KM ) by typing:
+
+`plot( KM, conf.int=FALSE, mark.time=FALSE, xlab="Weeks", ylab="Survival" )`
+
+```{r}
+KM = survfit(Surv(UnemSpell, Censored) ~ 1 , data=Unemployment)
+plot( KM, conf.int=FALSE, mark.time=FALSE, xlab="Weeks", ylab="Survival" )
+```
+
+8. Add the Weibull survival curve to your graph from 7.
+Note: You can use essentially the same command as in 3., except with a “one minus”.
+You will need to specify add = TRUE and col = ‘red’ , say, or some other way of
+distinguishing between the curves. Also, you may want to change the x-axis range.
+
+```{r}
+a = 1/1.353461
+b = exp(2.987603)
+plot(KM, conf.int=FALSE, mark.time=FALSE, xlab="Weeks", ylab="Survival" )
+curve(1 - pweibull(x, shape = a, scale = b), from = 0, to = 250, ylab="Cumulative" , xlab="Weeks", col = "red", add = TRUE)
+```
+
+9. (i) Compare the Weibull and Kaplan-Meier survival curve estimates. How are they
+similar/different?
+
+The Weibull and Kaplan-Meier are very similar in shape.
+
+(ii) As is typical, we do not know what the true survival curve looks like, so we cannot
+say which of these estimates is closer to the “truth”, but what is an advantage of using
+the Kaplan-Meier curve?
+
+The result from Kaplan-Meier is optimal
+
+10. Find the mean and median of the UnemSpell variable (these are the estimates of the
+true mean and median, respectively, that would be obtained from the ecdf model).
+Now, find the mean and median estimates from the Weibull, and Kaplan-Meier, models.
+
+```{r}
+trueMean <- mean(Unemployment$UnemSpell)
+trueMedian <- median(Unemployment$UnemSpell)
+print(trueMean)
+print(trueMedian)
+```
+
+```{r}
+Wf <- function(x) 1-pweibull(x, shape = a, scale = b)
+weibullMean <- integrate(Wf, lower = 0, upper = Inf)
+weibullMedian <- qweibull(0.5, shape = a, scale = b)
+print(weibullMean)
+print(weibullMedian)
+```
+
+```{r}
+# Finds area under Kaplan-Meier curve (if largest observation is censored, this assumes that the K-M drops to 0 at that value).
+
+# AUCKM stands for "Area Under Curve Kaplan Meier":
+AUCKM = function(survobj,duration)
+{
+base=c(0,summary(survobj)$time,max(duration))
+heights=c(1,summary(survobj)$surv)
+new=c()
+for(i in 1:length(heights)) { new=c(new,(base[i+1]-base[i])*heights[i]) }
+c(sum(new))
+}
+```
+
+```{r}
+KMMean <- AUCKM(KM, Unemployment$UnemSpell)
+print(KMMean)
+KM
+```
+
+11. Compare the unemployment durations of males and females (or if you prefer, of those
+on UI vs. not on UI) by plotting the two Kaplan-Meier curves on the same graph.
+
+```{r}
+Unemployment_new <- Unemployment %>%
+  mutate(Sex = ifelse(Sex == 0, "male", "female"))
+KMSex <- survfit(Surv(UnemSpell, Censored) ~ Sex, data = Unemployment_new)
+```
+
+```{r}
+ggsurvplot(KMSex, censor=FALSE , xlab="Months", data=Unemployment_new)
+```
+
+From the graph we could see that female almost consistently enjoys longer survival time of unemployment than male.
