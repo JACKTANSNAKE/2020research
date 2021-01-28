@@ -130,13 +130,15 @@ curve(1 - pweibull(x, shape = a, scale = b), from = 0, to = 250, ylab="Cumulativ
 9. (i) Compare the Weibull and Kaplan-Meier survival curve estimates. How are they
 similar/different?
 
-The Weibull and Kaplan-Meier are very similar in shape.
+The Weibull and Kaplan-Meier are very similar in shape, except that the KM estimate becomes higher than the Weibull estimate after week 50. 
 
 (ii) As is typical, we do not know what the true survival curve looks like, so we cannot
 say which of these estimates is closer to the “truth”, but what is an advantage of using
 the Kaplan-Meier curve?
 
-The result from Kaplan-Meier is optimal
+An advantage of a Kaplan-Meier is that it does not cast any assumption on the distribution of the
+data, and thus it technically has infinite flexibility to fit any kind of data. Further, if we could attain a large
+enough sample size, then the estimated median of a Kaplan-Meier model would better fit the truth.
 
 10. Find the mean and median of the UnemSpell variable (these are the estimates of the
 true mean and median, respectively, that would be obtained from the ecdf model).
@@ -187,7 +189,7 @@ KMSex <- survfit(Surv(UnemSpell, Censored) ~ Sex, data = Unemployment_new)
 ```
 
 ```{r}
-ggsurvplot(KMSex, censor=FALSE , xlab="Months", data=Unemployment_new)
+ggsurvplot(KMSex, censor=FALSE , xlab="Weeks", data=Unemployment_new)
 ```
 
-From the graph we could see that female almost consistently enjoys longer survival time of unemployment than male.
+From the graph we could see that female almost consistently enjoy longer survival time of unemployment than male, except that the female survival becomes lower after month 100.
