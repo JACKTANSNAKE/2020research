@@ -127,6 +127,8 @@ When t = 0,
 
 Thus the expression holds at t = 0.
 
+The above expression become infinity when $t \rightarrow \infty$, which implies area under hazard function is infinite.
+
 (e) Find the hazard function for an Exponential random variable with density parameterized as $f(t) = λe^{−λt}$. The Exponential is the only continuous distribution that has the “memoryless property”; given its hazard function, explain why it is said to satisfy this property.
 
 \begin{align*}
@@ -188,7 +190,7 @@ b <- exp(7.011883)
 
 hweibull <- function(x, a, b) dweibull(x, shape = a, scale = b)/(1 - pweibull(x, shape = a, scale = b))
 
-curve(dweibull(x, a, b), from = 0, to = 1550, ylab="Hazard" , xlab="Days")
+curve(hweibull(x, a, b), from = 0, to = 1550, ylab="Hazard" , xlab="Days")
 ```
 
 5. Answer the following conceptual short-answer questions:
@@ -207,9 +209,11 @@ We use the FailRate of each interval divided by the length of the interval, and 
 
 (d) Describe in your own words what it means to say that the Kaplan-Meier curve is “unbiased” (technically, it is only asymptotically unbiased, but we’ll ignore that small technicality).
 
-The area under the curve is the mean of the sample.
+It means that E($\hat{S}(t)$) = S(t) for any t.
 
 (e) Look up the term “stochastically ordered” (or “stochastically larger”). Describe in your own words what this term means (you may also find it helpful to draw a picture). Why can’t we simply say that one random variable is larger than another?
+
+R.V. X1 is stochastically larger than R.V. X2 if $P(X_1 > t) \geq P(X_2 > t)$. The reason why can't simply say one random variable is larger than another is that random variables are not constant numbers, so we can't no directly compare them.
 
 6. Answer the following True/False questions:
 
