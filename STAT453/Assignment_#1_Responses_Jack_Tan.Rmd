@@ -2,7 +2,7 @@
 title: "Assignment_#1_Responses_Jack_Tan"
 author: "JACKTANSNAKE"
 date: "2021/1/25"
-output: html_document
+output: pdf_document
 ---
 
 ```{r,warning=FALSE,message=FALSE}
@@ -76,6 +76,8 @@ I don't feel comfortable using the Exponential one because the distribution does
 you to the same conclusion you arrived at in (c)? If so, explain why, and if not,
 discuss what you take away from this realization.
 
+I don't think that such a comparison would lead me to the same conclusion because the results were all around 0.7. However, the exponential curve has a different shape with all other curves, which leads to the conclusion that simply checking $P(X \leq k)$ is not enough to assure a parametric method successfully captures the trend of given data.
+
 (e) Find the mean failure time of these cells. What does this value correspond to in
 your graph from (c)?
 
@@ -83,14 +85,7 @@ your graph from (c)?
 mean(Cell$Time)
 ```
 
-```{r}
-ggplot(data = data.frame(x = c(0, max(Cell$Time))), aes(x = x)) + 
-  stat_function(aes(color = "Exponential"), fun = pexp, args = list(rate = lambda)) +
-  stat_function(aes(color = "Weibull"), fun = pweibull, args = list(shape = a, scale = b)) +
-  stat_ecdf(data = Cell, aes(x = Time, color = "ecdf")) + 
-  geom_vline(xintercept = 995.1176, color = "black") +
-  labs(y = "Cumulative Distribution", x = "Days")
-```
+This value corresponds to the area above the ecdf curve but below the y=1 horizontal line.
 
 2. The data contained in Stroke.csv are from a study of the occurrence and risk factors
 for stroke in patients with no prior history of stroke. The variables are:
@@ -222,6 +217,8 @@ guides(color=guide_legend(title="AVG_SBP"))
 choice is correct, estimates will typically have lower variability, and the procedure
 will thus have higher power. What is an advantage of performing a non-parametric
 analysis?
+
+An advantage of a non-parametric analysis is that it does cast any assumption on the distribution of the data, and thus it technically has infinite flexibility to fit any kind of data. Further, if we could attain a large enough sample size, then the estimated median of a non-parametric analysis would better fit the truth.
 
 (b) We have said that the rate of change of the cumulative distribution function
 (CDF) tells us how the density function looks. Thus, the density function is the
