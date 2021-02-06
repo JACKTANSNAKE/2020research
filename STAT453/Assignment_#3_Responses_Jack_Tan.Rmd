@@ -1,0 +1,246 @@
+---
+title: "Assignment_#3_Response_Jack_Tan"
+author: "JACKTANSNAKE"
+date: "2021/2/5"
+output: html_document
+---
+
+```{r,warning=FALSE,message=FALSE}
+library(survival)
+library(survminer)
+library(tidyverse)
+
+Cell <- read.csv('https://www.macalester.edu/~addona/Cell.csv')
+```
+
+1. The life table below displays estimates of survival obtained from 2418 males with angina pectoris (chest pain from coronary heart disease). Survival time is computed from time of diagnosis to death (in years).
+
+(a) Find and plot a non-parametric estimate of the hazard function.
+
+```{r}
+SurvEst <- c(1, 0.811, 0.717, 0.652, 0.579, 0.519,  0.461, 0.417, 0.371, 0.334, 0.299, 0.256, 0.214, 0.184, 0.164, 0.143)
+
+SurvRate <- c(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+
+for (i in 1:length(SurvRate)){
+  SurvRate[i] <- SurvEst[i+1]/SurvEst[i]
+}
+
+SurvRate
+
+FailRate <- c(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+
+for (i in 1:length(SurvRate)){
+  FailRate[i] <- 1 - SurvRate[i]
+}
+
+FailRate
+
+HazardEst <- FailRate/1
+
+# Plot piece-wise constant hazard estimate.
+# Because of the 2 added 0's, we have 8 hazard values.
+hazstep = stepfun( c(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15) , c(0,HazardEst,0) )
+
+plot( hazstep, do.points=FALSE, ylab='Hazard', xlab='Days', main="", xlim=c(0,15) )
+```
+
+(b) Are you able to fit an Exponential model (via, say, survreg/maximum likelihood estimation) from the information provided above? Why or why not?
+
+No, we can't. Since we are only given survival estimation in intervals, it is impossible to fit parametric models because there are no individual data.
+
+(c) Based on your graph from (a), comment on the suitability of an Exponential model.
+
+I would say that it is not very suitable to fit an Exponential model, because the Exponential model hazard function is a horizontal line, yet our non-parametric estimate does not really reflect such shape.
+
+2. The following data is based on a cohort of 1571 men in the Framingham Heart Study who were disease-free at age 40 and were followed for a period of 40 years. Of interest is the distribution of the age they develop coronary heart disease (CHD). The following life table is available to estimate this distribution. Age Interval Number of CHD events Number Lost To Follow-up
+
+(a) Can you find, and plot, a Kaplan-Meier curve from this information? If so, do it, but if not, briefly explain why not.
+
+No we can't, since we do not have individual data points, it is impossible to fit a Kaplan-Meier curve.
+
+(b) Construct a life table for the incidence of CHD.
+
+```{r}
+life_table <- data.frame(Time = c("45-50", "50-55", "55-60", "60-65", "65-70", "70-75", "75-80"), Failed = c(17,36,62,76,50,9,0), Censored = c(29,60,83,441,439,262,7), Alive_at_start = c(1571,0,0,0,0,0,0), at_risk = c(0,0,0,0,0,0,0), Interval_Failure_rate = c(0,0,0,0,0,0,0), Interval_Servival_rate = c(0,0,0,0,0,0,0), Survival_at_left_end_pt = c(1,0,0,0,0,0,0))
+
+for (i in 1:6){
+  life_table[i+1, 4] = life_table[i, 4] - life_table[i, 2] - life_table[i, 3]
+} 
+
+for (i in 1:7){
+  life_table[i, 5] = life_table[i, 4] - life_table[i, 3]/2
+}
+
+life_table <- life_table %>%
+  mutate(Interval_Failure_rate = Failed/at_risk) %>%
+  mutate(Interval_Servival_rate = 1 - Interval_Failure_rate)
+
+for (i in 1:6){
+  life_table[i+1, 8] = life_table[i, 8] * life_table[i, 7]
+}
+
+life_table
+```
+
+(c) Plot the actuarial estimate of the survival curve, using an “optimistic” step function approach to connecting the survival estimates.
+
+```{r}
+step = stepfun( c(50, 55, 60, 65, 70, 75), life_table$Survival_at_left_end_pt)
+
+plot( step, do.points=FALSE, ylab="Survival Proportion", xlab="Days", main="", xlim=c(45, 75) )
+
+lines(c(45, 50, 55, 60, 65, 70, 75), life_table$Survival_at_left_end_pt, col='red')
+```
+
+3. This question consists of a series of parts all pertaining to the hazard function, h(t), of a random variable. An expression for the hazard function is: $h(t) =\frac{f(t)}{S(t)}$ for all t ≥ 0.
+
+(a) Will h(t) always be at least as large as f(t)? Briefly explain.
+
+Yes. Since the hazard function could be expressed as: $h(t) =\frac{f(t)}{S(t)}$, and S(t) is the survival function which is a decreasing function in the range [0, 1], h(t) must be at least as large as f(t).
+
+(b) What can we say about the difference between h(t) and f(t) at small values of t? What about as t increases?
+
+The difference would be small. As t increases, the difference would become larger.
+
+(c) We have an expression relating h(t) to f(t) and S(t). On Assignment # 1, we said that there was a relationship between the density, f(t), and the CDF, F(t). Use that relationship to show that we can also write: $h(t) = -\frac{d}{dt}(log \ S(t))$
+
+\begin{align*}
+f(t) &= \frac{d}{dt}F(t)\\
+ &= \frac{d}{dt}(1-S(t))\\
+ &= - \frac{d}{dt}S(t)\\
+h(t) &= \frac{f(t)}{S(t)}\\
+ &= \frac{-\frac{d}{dt}S(t)}{S(t)}\\
+ &= frac{d}{dt}log\ S(t)
+\end{align*}
+
+(d) We can re-arrange the expression in (c) as follows: $\int_{0}^{t} h(s)ds = −log \ S(t)$ Show that this expression holds at t = 0. What does the above expression become when $t \rightarrow \infty$? In words, express what this implies about any hazard function (if it is to be valid). Note: The cumulative hazard is defined as the left-hand side of the above expression, that is, cumulative hazard at $t = \int_{0}^{t} h(s)ds$. Although it can be difficult to interpret, the cumulative hazard arises frequently in survival analysis.
+
+When t = 0,
+\begin{align*}
+\int_{0}^{t} h(s)ds &= \int_{0}^{0} h(s)ds\\
+ &= 0\\
+−log \ S(0) &= -log 1\\
+ &= 0\\
+ \int_{0}^{0} h(s)ds &= −log \ S(0)
+\end{align*}
+
+Thus the expression holds at t = 0.
+
+(e) Find the hazard function for an Exponential random variable with density parameterized as $f(t) = λe^{−λt}$. The Exponential is the only continuous distribution that has the “memoryless property”; given its hazard function, explain why it is said to satisfy this property.
+
+\begin{align*}
+f(t) &= λe^{−λt}\\
+F(t) &= 1 - e^{-\lambda t}\\
+S(t) &= e^{-\lambda t}\\
+h(t) &= \frac{f(t)}{S(t)}\\
+ &= \frac{λe^{−λt}}{e^{-\lambda t}}\\
+ &= \lambda
+\end{align*}
+
+Since the hazard function of exponential is just a constant, the area under the hazard curve on interval of the same length would be the same, and thus the conditional probability would all be the same.
+
+4. Lifetime data commonly occur in the engineering environment. In this example, from a Canadian aluminum smelter, alumina is liquified in a steel-lined box (or cell) which is built to withstand extremely high temperatures. In the smelting process, aluminium is produced as a byproduct when the cell functions like a battery with molten alumina as the electrolyte. The cell needs to be replaced when the carbon lining cracks, allowing impurities into the process. The failure time data listed here (see also Cell.csv) represent days of service until replacement for 17 cells: 1540, 1415, 660, 999, 1193, 1006, 869, 1035, 797, 296, 775, 1424, 1169, 1500, 728, 670, 841.
+
+(a) Plot the Kaplan-Meier curve for this failure time data, including its confidence interval (Note: Since these data are all exact, you can fit the Kaplan-Meier by simply omitting the ‘Status’ portion of the survfit function).
+
+```{r}
+KM = survfit(Surv(Time)~1 , conf.type='plain' , data=Cell)
+
+plot(KM)
+```
+
+(b) Find (not by eye) the point and interval estimate of the 3-year (1095-day) survival probability, and of the median failure time.
+
+```{r}
+summary(KM)
+```
+
+point and interval estimate of the 3-year (1095-day) survival probability:
+
+0.3529, [0.1258, 0.580]
+
+point and interval estimate of the median failure time:
+
+999, [775, 1193]
+
+(c) We showed that, for data with no censoring, the variance of the Kaplan-Meier estimator is $\frac{S(k)(1−S(k))}{n}$, where n is the number of data points. For what value of S(k) is this variance maximized? Justify your claim with a (tiny) proof using only the numerator. Why do we not need to consider the denominator?
+
+\begin{align*}
+S(k)(1−S(k)) &= S(k)-S^2(k)\\
+ &= -(S^2(k) - S(k) + \frac{1}{4}) + \frac{1}{4}\\
+ &= -(S(k) - \frac{1}{2})^2 + \frac{1}{2}
+\end{align*}
+
+It is maximized at S(k) = 0.5.
+n is a constant and it does not affect S(k).
+
+(d) Fit a Weibull model to this data and graph the estimated hazard function. By looking at this graph, would you say that it indicates that there is “wear and tear” on the cell over time? Briefly explain.
+
+
+```{r}
+survreg(Surv(Time)~1, dist='weibull' , data=Cell)
+```
+
+```{r}
+a <- 1/0.3012274
+b <- exp(7.011883)
+
+hweibull <- function(x, a, b) dweibull(x, shape = a, scale = b)/(1 - pweibull(x, shape = a, scale = b))
+
+curve(dweibull(x, a, b), from = 0, to = 1550, ylab="Hazard" , xlab="Days")
+```
+
+5. Answer the following conceptual short-answer questions:
+
+(a) What assumption did we make about the censored observations when building the life-table (i.e., in the actuarial method)?
+
+The censored observations are (on average) at risk for only half of the interval in which they were recorded.
+
+(b) The actuarial method provides an approximation to the Kaplan-Meier curve. If we had enough data, how could we make this approximation increasingly better?
+
+Decrease the length of the time intervals.
+
+(c) Describe how we use a life-table to estimate the hazard function.
+
+We use the FailRate of each interval divided by the length of the interval, and the result will be individual point estimates of the hazard function. 
+
+(d) Describe in your own words what it means to say that the Kaplan-Meier curve is “unbiased” (technically, it is only asymptotically unbiased, but we’ll ignore that small technicality).
+
+The area under the curve is the mean of the sample.
+
+(e) Look up the term “stochastically ordered” (or “stochastically larger”). Describe in your own words what this term means (you may also find it helpful to draw a picture). Why can’t we simply say that one random variable is larger than another?
+
+6. Answer the following True/False questions:
+
+(a) True/False: Density functions measure the risk of failing at a point in time, given that failure has not yet occurred.
+
+False
+
+(b) True/False: The hazard function of the Normal is always decreasing.
+
+False
+
+(c) True/False: The hazard function of the Exponential is always constant.
+
+True
+
+(d) True/False: The hazard function of the Weibull is always increasing.
+
+False
+
+(e) True/False: When there is no censoring, the Kaplan-Meier curve is proportional to a Binomial random variable.
+
+True
+
+(f) True/False: The presence of censoring only affects the variance estimation procedure for the Kaplan-Meier curve, but not its asymptotic Normality, nor its asymptotic expected value.
+
+True
+
+(g) True/False: The confidence interval procedure which we discussed for the Kaplan-Meier curve will always lead to symmetric intervals.
+
+True
+
+(h) True/False: The confidence interval procedure which we discussed for median survival will always lead to symmetric intervals.
+
+False

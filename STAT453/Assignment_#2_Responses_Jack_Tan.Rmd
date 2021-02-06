@@ -1,0 +1,244 @@
+---
+title: "Assignment_#2_Response_Jack_Tan"
+author: "JACKTANSNAKE"
+date: "2021/1/29"
+output: html_document
+---
+```{r,warning=FALSE,message=FALSE}
+library(survival)
+library(survminer)
+library(tidyverse)
+
+Cord = read.csv('https://www.macalester.edu/~addona/Cord.csv')
+AML = read.csv('https://www.macalester.edu/~addona/AML.csv')
+Recidivism = read.csv('https://www.macalester.edu/~addona/Recidivism.csv')
+```
+
+1. Cord.csv contains data from an experiment in reliability, where the goal was to estimate the strength (in corded units) of a type of braided cord after weathering. The strengths of 48 pieces of cord that had been weathered for a specified length of time were investigated. The intention was to obtain the strengths of all 48 pieces of cord. However, 7 pieces were damaged during the course of the experiment, so that their actual strengths would be greater than the values recorded.
+
+(a) Is this data an example of interval-, left-, or right-censored data? Briefly explain.
+
+I think that this data is an example of right-censored data, because when the cords were damaged, we could only know a lower bound of the survival time of these cords and would lose track of their survival since they were damaged.
+
+(b) Fit a Weibull model to this data, and plot the estimated density. Does the estimated density show any skewness? If so, what type, and would you say that it is “mild”, “moderate”, or “extreme” skewness?
+
+```{r}
+Cord <- Cord %>% 
+  mutate(Damaged = ifelse(Damaged == 0, 1, 0))
+```
+
+```{r}
+survreg(Surv(Strength, Damaged)~1, dist='weibull' , data=Cord)
+```
+
+```{r}
+a = 1/0.06131651
+b = exp(4.025853)
+curve(dweibull(x, shape = a, scale = b), from = 0, to = 100, ylab="Cumulative" , xlab="Weeks")
+```
+
+I would say that the density show mild left-skewness.
+
+(c) Using the Weibull model, find the estimated mean and median strength of such pieces of cord.
+
+```{r}
+Wf <- function(x) 1-pweibull(x, shape = a, scale = b)
+weibullMean <- integrate(Wf, lower = 0, upper = Inf)
+weibullMedian <- qweibull(0.5, shape = a, scale = b)
+print(weibullMean)
+print(weibullMedian)
+```
+
+The weibull mean is 54.24244 and the weibull median is 54.78299.
+
+(d) Do you think a Normal model would be appropriate for this data?
+
+I think a normal would be appropriate here.
+
+(e) Fit a Normal model and compare its estimated density to the Weibull model. Do they differ substantially, and if so, in what way(s)?
+
+```{r}
+survreg(Surv(Strength, Damaged)~1, dist='gaussian' , data=Cord)
+```
+
+```{r}
+mid = 54.15332
+std = 4.751413 
+curve(dnorm(x, mean = mid, sd = std), from = 0, to = 100, ylab="Cumulative" , xlab="Weeks")
+```
+
+They do not differ substantially, but the bell shape of the normal is a bit wider than that of the normal, and thus the weibull density curve have a higher highest density than the normal curve.
+
+(f) Find the estimated mean and median from the Normal model. Do these indicate another way in which the Normal model is more restrictive than the Weibull?
+
+```{r}
+Norm <- function(x) 1-pnorm(x, mean = mid, sd = std)
+normalMean <- integrate(Norm, lower = 0, upper = Inf)
+normalMedian <- qnorm(0.5, mean = mid, sd = std)
+print(normalMean)
+print(normalMedian)
+```
+
+Yes, since the normal would imply the mean and median to be the same, the model would thus not be able to reflect skewness of the distribution and thus lose a certain amount of information contained by the data.
+
+2. AML.csv contains information from a clinical trial examining steroid-induced remission times (in weeks) for leukemia patients. One group of 21 patients were given 6-mercaptopurine (6-MP); a second group of 21 patients were given a placebo. The trial lasted only 1 year, thus some of the data were incomplete at the cut-off date since some patients were still in remission at that time.
+
+(a) Plot the ecdf for the placebo and 6-MP group on the same graph. From this graph, which of the groups has longer remission times?
+
+```{r}
+placebo <- AML %>%
+  select(DurationPlacebo, StatusPlacebo)
+MP <- AML %>%
+  select(Duration6MP, Status6MP)
+```
+
+```{r}
+plot(ecdf(placebo$DurationPlacebo), col="blue", do.points=FALSE, verticals=TRUE, main = "ecdf", xlab = "Duration", ylab = "Cumulative Density", xlim = c(0, 40))
+lines(ecdf(MP$Duration6MP), col="red", do.points=FALSE, verticals=TRUE)
+```
+
+The group given 6MP had longer remission time.
+
+(b) Make a new graph of the two Kaplan-Meier curves. Is the Kaplan-Meier curve for the placebo group equal to “1−” the ecdf from (a)? Is this the case for the 6-MP group? Briefly explain.
+
+```{r}
+KMPlacebo = survfit(Surv(DurationPlacebo, StatusPlacebo) ~ 1 , data = placebo)
+KM6MP = survfit(Surv(Duration6MP, Status6MP) ~ 1 , data = MP)
+plot(KMPlacebo, conf.int=FALSE, mark.time=FALSE, col = "blue", xlab="Weeks", ylab="Survival", xlim = c(0, 40))
+lines(KM6MP,conf.int = FALSE, mark.time=FALSE, col="red", do.points=FALSE, verticals=TRUE)
+```
+
+(c) Is the gap between the two Kaplan-Meier curves larger or smaller than it was using the ecdfs? Briefly explain.
+
+The gap now becomes larger in the Kaplan-Meier curves, because now we are taking into considerations of censoring and doing so would give us a longer survival time estimation than the one we would obtain from ecdf when it treats all data point as exact.
+
+(d) Why does the Kaplan-Meier curve for the 6-MP group not drop all the way to 0?
+
+If we sort `Duration6MP` and then look at the `Status6MP`, we would find that the last 5 data points are all $Status = 0$, which means that all five are right-censored. And the survival estimate does not drop when the local data point is right censored.  
+
+(e) Estimate the difference in median, and mean, survival between the placebo and 6-MP group. Would you say that either of these estimates is an underestimate of the true difference? If so, which one, the mean or the median, and why?
+
+```{r}
+# Finds area under Kaplan-Meier curve (if largest observation is censored, this assumes that the K-M drops to 0 at that value).
+
+# AUCKM stands for "Area Under Curve Kaplan Meier":
+AUCKM = function(survobj,duration)
+{
+base=c(0,summary(survobj)$time,max(duration))
+heights=c(1,summary(survobj)$surv)
+new=c()
+for(i in 1:length(heights)) { new=c(new,(base[i+1]-base[i])*heights[i]) }
+c(sum(new))
+}
+```
+
+```{r}
+KMPlaceboMean <- AUCKM(KMPlacebo, placebo$DurationPlacebo)
+KMMPMean <- AUCKM(KM6MP, MP$Duration6MP)
+print(KMPlaceboMean)
+print(KMMPMean)
+KMPlacebo
+KM6MP
+```
+
+```{r}
+23.28739 - 8.666667
+23 - 8
+```
+
+I think that the difference of the mean might be underestimated, since the placebo survival curve have already reached 0, the larger AOC of the 6MP survival curve, the larger the difference. Since the 6MP has not yet reached 0, it seems like it still has the chance of stretching out and have a bigger AOC, as a result larger difference in mean.
+
+3. Recidivism.csv has information on the re-arrest of 432 prisoners during the first year after their release from Maryland state prisons. Data on the released prisoners was collected weekly. The variables are:
+
+`week`: Week of first re-arrest of each former prisoner; if the prisoner was not re-arrested, this variable is censored at 52
+
+`arrest`: Status indicator (1=re-arrested, 0=not re-arrested)
+
+`fin`: Did prisoner receive financial aid after release (1=yes, 0=no). Study was an experiment in which financial aid was randomly provided to half the prisoners
+
+`age`: Prisoner’s age at time of release
+
+`race`: Prisoner’s race (1 for black, 0 otherwise)
+
+`wexp`: Work experience (1=prisoner had full-time work before prison, 0 otherwise)
+
+`mar`: Marital status (1=married at time of release, 0 otherwise)
+
+`paro`: Parole status (1=prisoner released on parole, 0 otherwise)
+
+`prio`: Number of prior incarcerations
+
+`educ`: Level of education (2 = ≤ 6 th grade, 3 = 7 − 9 th grade, 4 = 10 − 11th grade, 5 = high school graduate, and 6 = at least some postsecondary)
+
+`work1-work52`: Fifty-two (52) variables, one for each week of the following year (1 = former prisoner was employed that week, 0 otherwise)
+
+(a) Plot the overall Kaplan-Meier estimate of the time until re-arrest (you can change the y-axis limits to better see the graph).
+
+```{r}
+KM <- survfit(Surv(week, arrest) ~ 1 , data = Recidivism)
+plot(KM, conf.int=FALSE, mark.time=FALSE, col = "blue", xlab="Weeks", ylab="Survival", xlim = c(0, 55), ylim = c(0.6, 1))
+```
+
+(b) Estimate by eye the chance that a released prisoner is re-arrested within 26 weeks.
+
+About 13%.
+
+(c) Can we estimate the median time until re-arrest? Why or why not? What can we say with certainty about any estimate of this median?
+
+No, we can't, because the KM curve doesn't even have a corresponding value with survival = 0.5. We can say that this median is definitively larger than 52.
+
+(d) Investigate, and comment on, the relationship between time to re-arrest and (i) level of education, (ii) marital status. Include your R output/graphs.
+
+```{r}
+Recidivism_new <- Recidivism %>%
+  mutate(mar = ifelse(mar == 1, "married at time of release", "otherwise")) %>%
+  mutate(educ = ifelse(educ == 2, "≤ 6", ifelse(educ == 3, "7−9", ifelse(educ == 4, "10−11", ifelse(educ == 5, "high school", "postsecondary")))))
+```
+
+```{r}
+KMMarital <- survfit(Surv(week, arrest) ~ mar , data = Recidivism_new)
+ggsurvplot(KMMarital, censor=FALSE , xlab="Weeks", data=Recidivism_new)
+```
+
+The group married before arrest tends to consistently show a longer survival before re-arrest.
+
+```{r}
+KMedu <- survfit(Surv(week, arrest) ~ educ , data = Recidivism_new)
+ggsurvplot(KMedu, censor=FALSE , xlab="Weeks", data=Recidivism_new)
+```
+
+In general, groups with higher degree of education tend to show longer survival time until re-arrest. The 7-9th grade becomes the group with lowest survival curve after about 35 weeks.
+
+4. Suppose the following remission durations are observed from ten patients with tumors: six patients relapse at 3.0, 6.5, 6.5, 10, 12, and 15 months; one patient is lost to followup at 8.4 months; and three patients are still in remission at the end of the study after 4.0, 5.7, and 10 months. Without using a computer, calculate the value of the Kaplan-Meier curve at each distinct observation time. Also, estimate the median and mean time to remission from this Kaplan-Meier curve.
+
+\begin{align*}
+P(X>3) &= \frac{9}{10}\\
+P(X>4) &= \frac{9}{10} \times \frac{9}{9} = \frac{9}{10}\\
+P(X>5.7) &= \frac{9}{10} \times \frac{9}{9} \times \frac{8}{8} = \frac{9}{10}\\
+P(X>6.5) &= \frac{9}{10} \times \frac{9}{9} \times \frac{8}{8} \times \frac{5}{7} = \frac{9}{14}\\
+P(X>8.4) &= \frac{9}{10} \times \frac{9}{9} \times \frac{8}{8} \times \frac{5}{7} \times \frac{5}{5} = \frac{9}{14}\\
+P(X>10) &= \frac{9}{10} \times \frac{9}{9} \times \frac{8}{8} \times \frac{5}{7} \times \frac{5}{5} \times \frac{3}{4} = \frac{27}{56}\\
+P(X>12) &= \frac{9}{10} \times \frac{9}{9} \times \frac{8}{8} \times \frac{5}{7} \times \frac{5}{5} \times \frac{3}{4} \times \frac{1}{2} = \frac{27}{112}\\
+P(X>15) &= \frac{9}{10} \times \frac{9}{9} \times \frac{8}{8} \times \frac{5}{7} \times \frac{5}{5} \times \frac{3}{4} \times \frac{1}{2} \times 0 = 0
+\end{align*}
+
+```{r}
+Mean = 3 * 1 + 1 * 9/10 + 1.7 * 9/10 + 0.8 * 9/10 + 1.9 * 9/14 + 1.6 * 9/14 + 2 * 27/56 + 3 * 27/112
+Mean
+```
+
+Since $\frac{1}{2}$ is between $\frac{9}{14}$ and $\frac{27}{56}$, this means that the median would occur at $x = 10$. Thus, median is 10.
+
+5. Answer the following True/False and short-answer questions:
+
+(a) True/False: An observation is said to be right-censored if we only know an upper bound for its value.
+
+False.
+
+(b) What is the main consequence of ignoring right-censoring, that is, of pretending that all right-censored observations are exact?
+
+We will be underestimating the survival time.
+
+(c) Briefly describe the difference between a prevalent, and incident, follow-up study.
+
+A incident follow-up study will start with participants who have not experienced the start of an event, and thus given the duration of the study, some of the subject might never experience the start. Whereas the prevalent follow-up study only focus on patients who have already experienced the start of an event. Thus, incident follow up study is very resource intensive and the prevalent follow-up study might lead an overestimated result, and may lead to inability to achieve marginal exchangeability when studying the casuality because the data is not random enough.

@@ -1,0 +1,60 @@
+---
+title: "Quiz_#1_Response_Jack_Tan"
+author: "JACKTANSNAKE"
+date: "2021/2/2"
+output: html_document
+---
+1.
+
+(a)
+
+i. Calculate the area under the curve using the survival function, which is integrate 1 minus the CDF over the range (0, +$\infty$).
+
+ii. To calculate the median we will need to find the corresponding x value when the survival curve equals 0.5, by using the quantile function.
+
+iii. To calculate the 80th quantile means to find the corresponding x value when the survival curve equals 0.2, by using the quantile function.
+
+(b) The data point with the longest survival time is categorized as an exact observation.
+
+(c) Since the weibull model has two parameters, it has more flexibility than Exponential models to catch the trend of the data. Thus, the resulting model for weibull would be closer to the Kaplan-Meier curve.
+
+(d)
+
+i. Exponential
+
+ii. $(1) > (2)$
+
+(e) A
+
+2.
+
+(a) 
+$$
+P(X > 13) = \frac{1}{5}
+$$
+
+(b) First we fit a Weibull model using the data with the `survreg` function. Then, we use the calculated parameters into CDF of Weibull, which is `pweibull` and plug in 13 to calculate $P(X \leq 13)$. Finally we calculate $P(X > 13) = 1- P(x \leq 13)$ to obtain the chance of lasting more than 13 units.
+
+(c) Answer in (a) would not change because the number of units greater than 13 is still 1, so the result would not change. However, the answer in (b) would change, since we are using the data points to fit the Weibull model and if one of the data point changes, the parameter estimates will change and thus lead to change in calculation of $P(X > 13)$.
+
+(d)
+
+\begin{align*}
+P(X > 5) &= \frac{4}{5} \\
+P(X > 7) &= \frac{4}{5} * \frac{3}{3} = \frac{4}{5}\\
+P(X > 9) &= \frac{4}{5} * \frac{2}{3} = \frac{8}{15}\\
+P(X > 13) &= P(X > 12) = \frac{8}{15} * \frac{1}{2} = \frac{4}{15}\\
+P(X > 16) &= \frac{4}{15} * 0 = 0
+\end{align*}
+
+Thus, the new estimate would be $\frac{4}{15}$.
+
+3. False
+
+4. True
+
+5. False
+
+6. False
+
+7. True

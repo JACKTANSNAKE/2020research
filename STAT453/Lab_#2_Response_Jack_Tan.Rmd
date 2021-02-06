@@ -1,0 +1,174 @@
+---
+title: "Lab_#2_Response_Jack_Tan"
+author: "JACKTANSNAKE"
+date: "2021/2/4"
+output: html_document
+---
+
+Data description: In a study to evaluate a protocol change in disinfectant practices at a large university medical center, 154 patient records were reviewed. Infection of a burn wound is a common complication resulting in extended hospital stays and in the death of severely burned patients. Control of infection remains a prominent component of burn management. The purpose of the study was to compare a routine bathing care method (initial surface decontamination, followed by regular bathing with Dial soap), with a body cleansing method using 4% chlorhexidine gluconate (a chemical antiseptic used to kill microbes). Burns.csv has the following information on the 154 burn victims:
+
+`Time`: Time until staphylococcus infection in days
+
+`Status`: Did infection occur (1=yes, 0=no)
+
+`Treatment`: 1=new bathing solution (chlorhexidine), 0=routine bathing
+
+`Sex`: 1=female, 0=male
+
+`Race`: 1=white, 0=non-white
+
+`PercBurn`: Burn severity, measured by percentage of surface area of body burned
+
+`Site`: Head, Buttock, Trunk, UpperLeg, LowerLeg, RespTract (1=yes, 0=no)
+
+`BurnType`: Type of burn (1=chemical, 2=scald, 3=electric, 4=flame)
+
+`ExcisionTime`: Time until patient’s wound was removed in days
+
+`ExcisionStatus`: Was the patient’s wound removed? (1=yes, 0=no)
+
+`AnitbioticTime`: Time until patient was treated with antibiotics
+
+`AntibioticStatus`: Was the patient treated with antibiotics? (1=yes, 0=no)
+
+Reading the data into R and loading survival package: Type the following commands into your R Markdown file:
+
+```{r}
+Burns = read.csv( "https://www.macalester.edu/~addona/Burns.csv")
+library(survival)
+```
+
+1. Use our `LifeTable` function with `breaks = c(0, 10, 20, 30, 40, 50, 60, 70, 80, max(Burns$Time))` to find the columns of the actuarial table needed to estimate the time-to-infection survival curve (assume the last interval is infinite). Name the table, l. Plot the actuarial estimate (both “step function” and “straight line” methods) by typing (where l is the life table):
+
+```{r}
+breaks = c(0, 10, 20, 30, 40, 50, 60, 70, 80, max(Burns$Time))
+```
+
+```{r}
+LifeTable = function( time, status, breaks, finite )
+{
+failed = c(0,hist(time[status==1],breaks=breaks,plot=F)$counts)
+censored = c(0,hist(time[status==0],breaks=breaks,plot=F)$counts)
+alivestart = length(time)-cumsum(failed[-length(failed)])-cumsum(censored[-length(censored)])
+atrisk = alivestart-c(censored[-1]/2)
+failrate = failed[-1]/atrisk
+survrate = 1-failrate
+survest = c(1,cumprod(1-failrate)[1:(length(failrate))])
+if (finite==0) return(list(Failed=failed[-1],Censored=censored[-1],AliveStart=alivestart,
+                        AtRisk=atrisk[-length(atrisk)],FailRate=failrate[-length(failrate)],
+                        SurvRate=survrate[-length(survrate)],SurvEst=survest[-length(survest)]))
+if (finite==1) return(list(Failed=failed[-1],Censored=censored[-1],AliveStart=alivestart,
+                          AtRisk=atrisk,FailRate=failrate,SurvRate=survrate,SurvEst=survest))
+}
+```
+
+```{r}
+l = LifeTable(Burns$Time, status = Burns$Status, breaks = breaks, finite = 0)
+```
+
+```{r}
+step = stepfun( c(10,20,30,40,50,60,70,80) , l$SurvEst )
+plot(step, do.points=FALSE, ylab="Survival", xlab="Days", main="", ylim=c(0.4,1))
+lines( c(0,10,20,30,40,50,60,70,80) , l$SurvEst , col="red" )
+```
+
+2. Add the Kaplan-Meier curve to the graph from 1. Does the actuarial method provide an adequate approximation to the Kaplan-Meier?
+
+```{r}
+# Suppose we fit a Kaplan-Meier curve to our Burns survival times:
+KM = survfit(Surv(Time, Status)~1, data=Burns)
+
+plot(step, do.points=FALSE, ylab="Survival", xlab="Days", main="", ylim=c(0.4,1))
+lines( c(0,10,20,30,40,50,60,70,80) , l$SurvEst , col="red" )
+lines(KM, conf.int = FALSE, col = "purple")
+```
+
+Yes, the actuarial method provides an adequate approximation.
+
+3. 
+
+(i) When would we be forced to use the actuarial (or life-table) method, instead of the Kaplan-Meier curve?
+
+When our datasets only contains the time variable as intervals of time rather a discrete time point.
+
+(ii) What assumption does the actuarial method make regarding censored observations?
+
+The censored observations are on average at risk for only half of the interval in which they were recorded.
+
+(iii) How many times does the actuarial estimate of the survival curve from 1. drop? Why does it not drop 9 times, i.e., the number of intervals.
+
+6 times. If we look at the dataset and sort it from largest time to lowest time, we would find that all data starting from 60 are censored, which means that in the intervals $[60, 70)$, $[70, 80)$, $[80, +\infty)$, the number of failures would all be 0 and thus leading to interval failure rates to be 0. And hence the interval survival rates would become 1 and the survival at left end point since $[60, 70)$ would all be the same.
+
+4. Estimate the hazard function for time-to-infection (Hint: Look at the Topic # 5 R commands). Call the vector of hazard estimates: HazardEst. Plot this piecewise constant estimated hazard function by typing:
+
+```{r}
+HazardEst = l$FailRate/10
+hazstep = stepfun( c(0,10,20,30,40,50,60,70,80) , c(0,HazardEst,0) )
+plot( hazstep , do.points=FALSE , ylab="h(k)" , xlab="k" , main="" )
+```
+
+5. Based on what you see in the graph from 4., comment on (describe) the risk of infection.
+
+The risk of getting infected is very high from 0 - 20 and 40 - 60, whereas the risk is low from 20 - 40. 
+
+6. Would the parametric models that we have seen fit this data well? Briefly explain.
+
+No. The hazard function show a bi-model trend in the data, but from the models that we have seen, it is impossible to achieve such a shape.
+
+7. Confirm your thoughts by fitting a Weibull model. Add the graph of the estimated Weibull hazard to the plot of the non-parametric hazard estimate from 4.
+
+```{r}
+survreg(Surv(Time, Status)~1, dist='weibull' , data=Burns)
+```
+
+```{r}
+a = 1/1.185073
+b = exp(4.421479)
+
+hweibull = function(x, a, b) {dweibull(x, shape = a, scale = b)/(1-pweibull(x, a, b))}
+
+plot( hazstep , do.points=FALSE , ylab="h(k)" , xlab="k" , main="" )
+lines(hweibull((0:90), a, b), col = "blue")
+```
+
+8. We can draw a piecewise constant estimate of the density (as we did for the hazard), by simply multiplying our hazard estimates by the corresponding survival estimates. That is, type:
+
+```{r}
+DensityEst = HazardEst*l$SurvEst[1:8]
+denstep = stepfun( c(0,10,20,30,40,50,60,70,80) , c(0,DensityEst,0))
+plot( denstep , do.points=FALSE , ylab="f(k)" , xlab="k" , main="" )
+```
+
+Comment on the similarities, and differences, between the density estimate and the hazard estimate, and briefly explain.
+
+The similar parts are the trend reflected by the shapes of the two plots. But the difference is that, except for the first interval, all intervals after the first interval have smaller point estimate of the density. This is because the hazard function is estimating the conditional probability of risk of failure given that one has not failed until time $t$, whereas the pdf is estimating the probability of risk of failure in the entire population. Thus, the hazard curve is higher than the pdf. Since the survival will be 1 in the first interval, the trend will be the same for pdf and hazard function in that interval.  
+
+9. For the Kaplan-Meier curve from 2., use the summary command to find an interval estimate of the 20th quantile, that is, of when S(k) = 0.80.
+
+```{r}
+summary(KM)
+```
+
+[7, 18]
+
+10. Now, graph Kaplan-Meier curves of Time stratified by Treatment. To do this, type: 
+
+```{r}
+KMTrt = survfit( Surv( Time , Status ) ~ Treatment , data=Burns )
+plot( KMTrt , mark.time=FALSE , conf.int=TRUE , lty=1:2 )
+```
+
+Is there evidence of a difference in the 30-day survival rate between the two treatments? Answer this question by finding interval estimates.
+
+```{r}
+summary(KMTrt)
+```
+30-day survival rate interval for `Treatment = 0` is [0.506, 0.756].
+
+30-day survival rate interval for `Treatment = 1` is [0.643, 0.852].
+
+There is no evidence of difference in the 30-day survival rate between the two treatments, since the two confidence interval interwines with each other.
+
+11. How can you quickly tell, by looking at the Kaplan-Meier curves, whether there is evidence of a difference between the treatment groups at all individual time points?
+
+If one curve is systematically above or below the other one, then there is evidence; if they interwine with each other, than there is no evidence.
