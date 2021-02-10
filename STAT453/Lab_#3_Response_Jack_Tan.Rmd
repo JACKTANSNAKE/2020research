@@ -1,0 +1,191 @@
+---
+title: "Lab_#3_Response_Jack_Tan"
+author: "JACKTANSNAKE"
+date: "2021/2/9"
+output: html_document
+---
+
+Data description: UNMissions.csv has data on 54 United Nations (UN) Peacekeeping Missions from 1948 to 2001. For each mission, the following variables were recorded:
+
+`Name`: An identifier label for the mission
+
+`Duration`: Length of the mission in months
+
+`Censored`: 0=exact (mission had ended) ; 1=censored (mission had not ended)
+
+`CivilWar`: Was the mission in response to a civil war? (0=no ; 1=yes)
+
+`InterState`: Was the mission in response to an interstate conflict? (0=no ; 1=yes)
+
+`Troops`: Number of troops deployed during mission
+
+`Expend`: Amount spent on mission (U.S. dollars)
+
+`Deaths`: Number of recorded deaths during mission
+
+`Area`: Size of region for which mission was deployed (in square-miles, I think)
+
+`Borders`: Number of borders present in region where mission was deployed
+
+`Note`: For some missions, both CivilWar and InterState are 0. These missions are said to be in response to an “internationalized civil war” (civil wars involving more than 1 government).
+
+Reading the data into R and loading survival package: Type the following commands into your R Markdown file:
+
+```{r}
+UNMissions = read.csv( "https://www.macalester.edu/~addona/UNMissions.csv")
+library(survival)
+library(survminer)
+library(tidyverse)
+```
+
+```{r}
+UNMissions <- UNMissions %>%
+  mutate(Status = ifelse(Censored == 0, 1, 0))
+```
+
+1. Fit and graph the Kaplan-Meier curve (including its confidence interval) for the durations of the peacekeeping missions. In the survfit command, specify conf.type = ‘plain’ (this makes R use Greenwood’s formula to find the confidence intervals).
+
+```{r}
+KM <- survfit(Surv(Duration, Status) ~ 1 , data = UNMissions)
+```
+
+```{r}
+plot(KM, conf.type = "plain", col = c("red"), xlab="Months", ylab="Survival", xlim = c(0, 150))
+```
+
+2. Find a point and interval estimate for the 40-month survival probability using the summary function on your Kaplan-Meier object.
+
+```{r}
+summary(KM)
+```
+
+0.413, [0.297, 0.576]
+
+3. Find a point and interval estimate for when S(k) = 0.75 on the Duration distribution.
+
+15, [12, 25]
+
+4. Fit and graph the Kaplan-Meier curves of `Duration` by `CivilWar`. Find separate confidence intervals for the 25-month survival probability in each group (CivilWar = 0 and CivilWar = 1). Is there enough evidence to say that the true 25-month survival probabilities are different? Briefly explain.
+
+```{r}
+KM = survfit(Surv(Duration, Status) ~ CivilWar, data = UNMissions)
+
+plot(KM, conf.int=TRUE, col = c("red", "blue"), lty=1:2, xlim = c(0, 150))
+```
+
+```{r}
+summary(KM)
+```
+
+`CivilWar` = 0:
+[0.483, 0.791]
+
+`CivilWar` = 1:
+[0.2027, 0.777]
+
+We do not have enough evidence to say that the true 25-month survival probabilities are different, since the confidence intervals for the two groups overlap and thus we can't guarantee the 25-month survival probabilities to be different.
+
+5. The log-rank test uses a series of 2-by-2 tables. How many 2-by-2 tables would be needed to carry out the log-rank test of Duration by CivilWar? Make the first 2-by-2 table, and find the expected number of failures (Ai and Ci using our notation) in the two groups (CivilWar = 0 and CivilWar = 1) for this table.
+
+```{r}
+UNMissions %>%
+  filter(Status == 1) %>%
+  distinct(Duration)
+```
+
+27 tables.
+
+```{r}
+table_f <- life_table <- data.frame(`Interval(0,2]` = c("CivilWar = 0", "CivilWar = 1", "Total"), Failed = c(1, 0, 1), `Didn't Fail` = c(38, 15, 53), Total = c(39, 15, 54))
+table_f
+```
+
+6. Now perform the log-rank test to see whether the two survival curves (for CivilWar = 0 and CivilWar = 1) are identical. State, in words, the null and alternative hypotheses for the log-rank test. Also state the test statistic, the p-value, and your conclusion for the “Mantel-Cox” version.
+
+```{r}
+survdiff(Surv(Duration, Status) ~ CivilWar, data = UNMissions)
+```
+
+$H_0$: $S_{CivilWar = 0}(t) = S_{CivilWar = 1}(t)$ for all t.
+
+$H_a$: $S_{CivilWar = 0}(t) \neq S_{CivilWar = 1}(t)$ for some t.
+
+Test-stat: 
+
+```{r}
+0.992+5.144
+```
+
+pvalue: 
+
+```{r}
+1 - pchisq(6.136, df = 1)
+```
+
+Conclusion: Since $p \leq 0.05$, we have statistically significant evidence that the two survival curves are not identical.
+
+7. The conclusion of your test in 6. does not give a “direction”; it only states whether the two curves are identical or not. To alleviate this issue, we can certainly look at the Kaplan-Meier curves from 4. Or, we can calculate an overall hazard ratio (HR) between the groups: Find a point and interval estimate of the HR. The conclusions of the HR confidence interval and the log-rank test will not necessarily agree. Do they agree in this case?
+
+HR point estimate:
+
+```{r}
+(27/32.7)/(12/6.3)
+```
+
+HR 95% CI:
+
+```{r}
+# Left endpoint:
+0.4334862*exp(-1.96*sqrt(1/32.7 + 1/6.3))
+# Right endpoint:
+0.4334862*exp(1.96*sqrt(1/32.7 + 1/6.3))
+```
+
+Thus the 95% CI for the true HR is : [0.1847615, 1.017042]. Since the CI encompasses 1, the HR confidence interval and the log-rank test do not agree.
+
+8. Repeat 6. and 7. with the InterState variable instead of CivilWar.
+
+```{r}
+survdiff(Surv(Duration, Status) ~ InterState, data = UNMissions)
+```
+
+$H_0$: $S_{InterState = 0}(t) = S_{InterState = 1}(t)$ for all t.
+
+$H_a$: $S_{InterState = 0}(t) \neq S_{InterState = 1}(t)$ for some t.
+
+Test-stat: 
+
+```{r}
+1.22+3.16
+```
+
+pvalue: 
+
+```{r}
+1 - pchisq(4.38, df = 1)
+```
+
+Conclusion: Since $p \leq 0.05$, we have statistically significant evidence that the two survival curves are not identical.
+
+HR point estimate:
+
+```{r}
+(34/28.1)/(5/10.9)
+```
+
+HR 95% CI:
+
+```{r}
+# Left endpoint:
+2.637722*exp( -1.96*sqrt(1/28.1 + 1/10.9))
+# Right endpoint:
+2.637722*exp( 1.96*sqrt(1/28.1 + 1/10.9))
+```
+
+Thus, the 95% CI for the true HR is [1.310648, 5.308502]. Since the CI does not encompass 1, the HR confidence interval and the log-rank test agree.
+
+9. In this context, what does an HR > 1 correspond to in terms of the durations of UN peacekeeping missions? Depending on how you found your HR for InterState, you may get different, but equivalent, intervals. This depends on whether you took the ratio as: (InterState=1)/(InterState=0) or (InterState=0)/(InterState=1). What do you conclude about the lengths of missions when there is an interstate conflict?
+
+When an $HR > 1$, it means that failures are occurring at a faster rate in countries with no inter-state conflict than in countries with inter-state conflict.
+
+The length of the mission tend to be longer than the ones in countries with no interstate conflict.
