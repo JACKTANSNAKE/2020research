@@ -1,0 +1,299 @@
+---
+title: "MidTerm_Response_Jack_Tan"
+author: "JACKTANSNAKE"
+date: "2021/2/16"
+output: html_document
+---
+
+```{r}
+library(survival)
+library(tidyverse)
+```
+
+```{r}
+AppPopularity = read.csv( 'https://www.macalester.edu/~addona/AppPopularity.csv' )
+```
+
+## 1.
+
+### a.
+
+```{r}
+KM <- survfit(Surv(DaysSurvived, Status) ~ Type , data = AppPopularity, conf.type = "plain")
+summary(KM)
+```
+
+Free:
+
+26, [18, 45]
+
+Paid:
+
+75, [49, 83]
+
+Yes we do have enough evidence that there is truly a difference in these 80th quantiles in that the two 95% CIs does not intersect.
+
+### b.
+
+No, they are not symmetric.
+
+### c. 
+
+##### i.
+
+```{r}
+survdiff(Surv(DaysSurvived, Status) ~ AgeRate, data = AppPopularity)
+```
+
+Hypothesis:
+
+$H_0$: $S_{AgeRate=04}(t) = S_{AgeRate=09+}(t) = S_{AgeRate=12+}(t) = S_{AgeRate=17+}(t)$ for all t.
+
+$H_a$: $S_{AgeRate=04}(t) \neq S_{AgeRate=09+}(t) \neq S_{AgeRate=12+}(t) \neq S_{AgeRate=17+}(t)$ for some t.
+
+using the Hanzel-Cox method:
+
+test statistics:
+
+```{r}
+0.740 + 0.307 + 1.310 + 2.159
+```
+
+p-value:
+
+```{r}
+1 - pchisq(4.516, df = 3)
+```
+
+Conclusion:
+
+Since the p-value is greater than 0.05, we do not have enough evidence to say that the survival of different `AgeRate` are no identical.
+
+##### ii.
+
+Question a. was asking about the difference of survival at a certain time point, whereas Question c. ii. is asking about if the entire survival curves are identical or not.
+
+### d.
+
+```{r}
+AppPopularity %>%
+  filter(Status == 1) %>%
+  distinct(DaysSurvived)
+```
+
+242 tables.
+
+### e.
+
+The lowest one will be the curve having the smallest $\frac{(O-E)^2}{E}$ and the highest one will be the curve having the largest $\frac{(O-E)^2}{E}$.
+
+### f.
+
+```{r}
+m = survreg(Surv(DaysSurvived, Status) ~ AvgRate, dist ='lognormal', data = AppPopularity)
+
+summary(m)
+```
+
+```{r}
+1 - plnorm(50, 1.3860 + 0.1842 * 3.5, 1.8)
+```
+
+About 14.8% chance that an app with 3.5 rating would survive longer than 50 days.
+
+### g.
+
+```{r}
+qlnorm(1 - 0.14797, 1.3860 + 0.1842 * 4.5, 1.8)
+```
+
+Around 60 days.
+
+### h.
+
+$$
+\frac{60.11282}{50} = exp(0.1842)
+$$
+
+## 2.
+
+```{r}
+life_table <- data.frame(Intervals = c("0-1", "1-2", "2-3", "3-4", "4-5", "5-6"),Interval_Failure_rate = c(0,0,0,0,0,NaN), Interval_Survival_rate = c(0,0,0,0,0,NaN), Survival_at_left_end_pt = c(1,0.8,0.6,0.4,0.3,0.05))
+```
+
+```{r}
+for (i in 1:5){
+  life_table[i, 3] <- life_table[i+1, 4]/ life_table[i, 4]
+}
+
+for (i in 1:5){
+  life_table[i, 2] <- 1 - life_table[i, 3]
+}
+
+life_table
+```
+
+Since the interval length is 1, `Interval Failure Rate` is the same as the estimate of hazard in each interval. For interval `0-1`, the hazard estimate is 0.2; for interval `1-2`, the hazard estimate is 0.25; for interval `2-3`, the hazard estimate is 0.333333; for interval `3-4`, the hazard estimate is 0.25; for interval `4-5`, the hazard estimate is 0.8333333.
+
+## 3.
+
+### a.
+
+False
+
+### b.
+
+True
+
+### c.
+
+False
+
+### d.
+
+False
+
+### e.
+
+True
+
+### f.
+
+True
+
+## 4.
+
+[0, 25):   Group 2's hazard is higher 
+
+[25, 50):  Group 1's hazard is higher
+
+[50, 75):  Group 2's hazard is higher
+
+[75, 100): Hard to tell which group has a higher hazard 
+
+## 5.
+
+### a.
+
+right-censored data. Because we only know the lower bound of the time of weathering, but do not know the exact weathering time.
+
+### b.
+
+##### i.
+
+P(X < 44) = $\frac{10}{48} = \frac{5}{24}$
+
+##### ii.
+
+\begin{align*}
+P(X>26.8) &= \frac{48}{48} = 1\\
+P(X>29.6) &= 1 \times \frac{47}{47} = 1\\
+P(X>33.4) &= 1 \times \frac{46}{46} = 1\\
+P(X>35.0) &= 1 \times \frac{45}{45} = 1\\
+P(X>36.3) &= 1 \times \frac{43}{44} = \frac{43}{44}\\
+P(X>40.0) &= \frac{43}{44} \times \frac{43}{43} = \frac{43}{44}\\
+P(X>41.7) &= \frac{43}{44} \times \frac{41}{42} = \frac{1763}{1848}\\
+P(X>41.9) &= \frac{1763}{1848} \times \frac{41}{41} = \frac{1763}{1848}\\
+P(X>42.5) &= \frac{1763}{1848} \times \frac{40}{40} = \frac{1763}{1848}\\
+P(X>44.0) &= P(X>43.9) = \frac{1763}{1848} \times \frac{38}{39} = \frac{66994}{72072} 
+\end{align*}
+
+### c.
+
+```{r}
+sweibull <- function(x) 1 - pweibull(x, shape = 1 / 0.06131651, scale = exp(4.025853))
+integrate(sweibull, lower = 0, upper = Inf)
+```
+
+The mean of `Strength` is 54.24244.
+
+### d.
+
+Because for damaged, those that are not damaged(`Damaged` = 0) are exact data points and the damaged are actually right-censored data points. In this sense, we have to reverse the 0's and 1's in the `Damaged` variable so that it will fit the survival package's requirement.
+
+## 6.
+
+### a.
+
+We assume that the censored observations are at risk for only half of the interval in which they were recorded on average.
+
+### b.
+
+When our data show a non-monotonic trend.
+
+### c.
+
+$$
+f(t) = \lambda e^{-\lambda t}
+$$
+
+$$
+F(t) = \int_{0}^{t} \lambda e^{-\lambda t} = 1 - e^{-\lambda t}
+$$
+
+$$
+S(t) = 1 - F(t) = e^{-\lambda t}
+$$
+
+$$
+h(t) = \frac{f(t)}{S(t)} = \frac{\lambda e^{-\lambda t}}{e^{-\lambda t}} = \lambda = \frac{1}{\beta}
+$$
+
+$$
+\therefore \beta = \frac{1}{h(t)}
+$$
+
+$$
+log(\beta) = log(\frac{1}{h(t)}) = -log(h(t)) = c_0+c_1x_1+c_2x_2+\cdots+c_kx_k
+$$
+
+
+
+## 7. 
+
+### a.
+
+Finding the Area under the Curve of a survival curve.
+
+### b.
+
+```{r}
+sweibull <- function(x) 1 - pweibull(x, shape = 2, scale = 3)
+integrate(sweibull, lower = 0, upper = Inf)
+```
+
+The mean survival time is 2.658681.
+
+### c.
+
+$$
+S_5(x) = P(X > x|X > 5) = \frac{P(X > x \land X > 5)}{P(X>5)}
+$$
+Since we have x > 5, we could then have:
+
+$$
+S_5(x) = \frac{P(X > x \land X > 5)}{P(X>5)} = \frac{P(X > x)}{P(X>5)} = \frac{S(x)}{S(5)}
+$$
+
+For any x > 5, $S_5(x)$ is the original S(x) divided by S(5).
+
+### d.
+
+$$
+S_5(x) = P(X > x|X > 5) = \frac{P(X > x \land X > 5)}{P(X>5)}
+$$
+
+Since we have $x \leq 5$, we then have:
+
+$$
+S_5(x) = \frac{P(X > x \land X > 5)}{P(X>5)} = \frac{P(X > 5)}{P(X>5)} = 1
+$$
+
+Thus, for any $x \leq 5$, $S_5(x)$ is equal to 1.
+
+### e. 
+
+```{r}
+s5weibull <- function(x) (1 - pweibull(x, shape = 2, scale = 3))/(1 - pweibull(5, shape = 2, scale = 3))
+integrate(s5weibull, lower = 0, upper = Inf)
+```

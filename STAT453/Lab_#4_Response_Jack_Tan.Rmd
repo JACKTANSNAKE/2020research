@@ -1,0 +1,191 @@
+---
+title: "Lab_#4_Response_Jack_Tan"
+author: "JACKTANSNAKE"
+date: "2021/2/11"
+output: html_document
+---
+
+`Stroke.csv` has data on 100 subjects from a study of the occurrence, and risk factors for, stroke in patients with no prior history of stroke. The variables are:
+
+`T`: Time until first stroke from baseline evaluation (in years)
+
+`Censored`: 1 = no stroke occurred during study , 0 = stroke occurred during study
+
+`Age`: Age of patient (in years)
+
+`Sex`: 0 = female , 1 = male
+
+`SBP`: systolic blood pressure
+
+`DBP`: diastolic blood pressure
+
+`BMI`: body mass index
+
+`Smoke`: 1 = current smoker , 0 = other
+
+`ACH`: Alcoholic drinking status (1 = current drinker , 0 = other)
+
+`HDL`: high density lipoprotein cholesterol
+
+`LDL`: low density lipoprotein cholesterol
+
+`DM`: Diabetes status (1 = yes , 0 = no)
+
+`ALBU`: albuminuria status (1 = normal , 2 = elevated , 3 = very high)
+
+Reading the data into R and loading survival package: Type the following commands into your R Markdown file:
+
+```{r}
+Stroke = read.csv( "https://www.macalester.edu/~addona/Stroke.csv")
+library(survival)
+```
+
+1. Fit a Weibull accelerated failure time (AFT) model for time (T) which uses Sex.
+
+```{r}
+m = survreg(Surv(T,(1-Censored))~Sex, dist ='weibull', data=Stroke)
+
+summary(m)
+```
+
+(a) Who of males or females is estimated to have a shorter time to stroke?
+
+Males are estimated to have a shorter time to stroke.
+
+(b) Find the estimated mean time to stroke for both males and females.
+
+```{r}
+SM = function(x) 1 - pweibull(x , 1/0.252, exp(2.8359-0.0310))
+integrate( SM , 0 , Inf )
+```
+
+```{r}
+SF = function(x) 1 - pweibull(x , 1/0.252, exp(2.8359))
+integrate( SF , 0 , Inf )
+```
+
+(c) Provide an interpretation of the Sex coefficient.
+
+```{r}
+log(14.97191/15.44331)
+```
+
+Males' time to Stroke is exp(0.0310) times shorter than Females' time stroke.
+
+(d) Is the relationship statistically significant? Briefly explain.
+
+No, since the p-value is 0.58, which is larger than 0.05, we do not have statistically significant evidence to that there is relationship between `Sex` and `Time`.
+
+(e) Graph the estimated survival curves for males and females (in the same plot) over the range 0 to 25 years.
+
+```{r}
+curve(1 - pweibull(x, 1/0.252, exp(2.8359 - 0.0310)), from=0, to=25, ylim=c(0,1), ylab="Survival", xlab="Years", col = "blue")
+
+curve(1 - pweibull(x , 1/0.252, exp(2.8359)), add=TRUE, lty=2, col = "red")
+```
+
+2. Fit a lognormal AFT model for T which uses diastolic blood pressure (DBP).
+
+```{r}
+m = survreg(Surv(T,(1-Censored))~DBP, dist ='lognormal', data=Stroke)
+
+summary(m)
+```
+
+(a) Is the relationship statistically significant? Briefly explain.
+
+No, since the p-value is 0.51, which is larger than 0.05, we do not have statistically significant evidence to that there is relationship between `DBP` and `Time`.
+
+(b) Graph the estimated survival curves for two individuals, one with `DBP=72` and the other with `DBP=83`, (in the same plot) over the range 0 to 25 years.
+
+```{r}
+curve(1 - plnorm(x, 2.39563 + 0.00345 * 72, 0.458), from=0, to=25, ylim=c(0,1), ylab="Survival", xlab="Years", col = "blue")
+
+curve(1 - plnorm(x, 2.39563 + 0.00345 * 83, 0.458), add=TRUE, lty=2, col = "red")
+```
+
+3. Now fit a lognormal AFT model for T which uses both systolic blood pressure (SBP) and diastolic blood pressure (DBP).
+
+```{r}
+m = survreg(Surv(T, (1-Censored)) ~ DBP + SBP, dist ='lognormal', data=Stroke)
+
+summary(m)
+```
+
+(a) Controlling for SBP, is it beneficial or detrimental to have a higher DBP? Is the relationship between T and DBP significant?
+
+When controlling for SBP, it is beneficial to have a higher DBP. Since the p-value is 0.0043, which is smaller than 0.05, the relationship between T and DBP is statistically significant.
+
+(b) Suppose we want to again compare the estimated survival curves for DBP=72 and DBP=83, what would we need to do/assume in order to draw these two curves? Make this graph comparing the survival curves for DBP=72 and DBP=83.
+
+We have to hold SBP constant.
+
+```{r}
+curve(1 - plnorm(x, 2.96437 + 0.01608 * 72 - 0.01192 * mean(Stroke$SBP), 0.416), from=0, to=25, ylab="Survival", xlab="Years", col = "blue")
+
+curve(1 - plnorm(x, 2.96437 + 0.01608 * 83 - mean(Stroke$SBP), 0.416), add=TRUE, lty=2, col = "red")
+```
+
+(c) Compare the graph from 3.(b) to the graph from 2.(b), and comment on what has happened. How does this relate to the output from the two models (i.e., the model in 2. and the model in 3.)?
+
+The survival curves now becomes more separate after controlling for the SBP variable. People with higher DBP tend to have longer survival time. From the result, we could see that there is a confounding relationship between DBP and SBP when we are making models investigating the relationship between DBP and first time to Stroke. Since we have held SBP constant, the p-value of DBP now becomes smaller than 0.05, which now becomes statistically significant. 
+
+4. Find the estimated mean time to stroke for DBP=72 and DBP=83 using the model in 2. What is the difference in these mean times to stroke? Repeat using the model in 3. Again, you should notice the impact of controlling for SBP.
+
+```{r}
+S272 = function(x) 1 - plnorm(x, 2.39563 + 0.00345 * 72, 0.458)
+integrate( S272 , 0 , Inf )
+```
+
+```{r}
+S283 = function(x) 1 - plnorm(x, 2.39563 + 0.00345 * 83, 0.458)
+integrate( S283 , 0 , Inf )
+```
+
+```{r}
+16.23001 - 15.62562
+```
+
+```{r}
+S372 = function(x) 1 - plnorm(x, 2.96437 + 0.01608 * 72, 0.416)
+integrate( S372 , 0 , Inf )
+```
+
+```{r}
+S383 = function(x) 1 - plnorm(x, 2.96437 + 0.01608 * 83, 0.416)
+integrate( S383 , 0 , Inf )
+```
+
+```{r}
+80.2814 - 67.26621
+```
+
+5. Find the ratio of mean time to stroke for DBP=83 vs. DBP=72 for the model in 3. How is this ratio obtainable from the coefficient(s) of the model?
+
+```{r}
+80.2814/67.26621
+```
+
+```{r}
+exp(0.01608 * 11)
+```
+
+6. General question: Why are the Exponential and Weibull AFT models made on a log scale, where as the Normal model is not on a log scale?
+
+Exponential and Weibull AFT models are made on a log scale because we have to make sure the corresponding parameters are on positive: $\Beta$ in exponential and b in the weibull. Since the $\mu$ parameter in Normal could be both positive and negative, there's no need for Normal to be on a log scale. 
+
+7. Which model you select can matter a lot: Compare the summary output of a model for T using Age assuming a Weibull distribution to the analogous model assuming a lognormal distribution. What do you notice? (soon, we will discuss some ways of assessing the fit of a model, and metrics for performing model selection).
+
+```{r}
+m = survreg(Surv(T,(1-Censored))~Age, dist ='weibull', data=Stroke)
+
+summary(m)
+```
+
+```{r}
+m = survreg(Surv(T, (1-Censored)) ~ Age, dist ='lognormal', data=Stroke)
+
+summary(m)
+```
+
+The weibull model gives that the relationship between `Age` and `Time` is not statistically significant, whereas the lognormal model gives that the relationship between `Age` and `Time` is statistically significant. 

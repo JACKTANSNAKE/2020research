@@ -1,0 +1,361 @@
+---
+title: "Assignment_#4_Response_Jack_Tan"
+author: "JACKTANSNAKE"
+date: "2021/2/11"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(survival)
+library(survminer)
+```
+
+```{r}
+HIV = read.csv( "https://www.macalester.edu/~addona/HIV.csv")
+Leaders = read.csv( "https://www.macalester.edu/~addona/Leaders.csv")
+```
+
+1. One goal of recent research is to explore the efficacy of triple-drug combinations of antiretroviral therapy for the treatment of HIV patients. Due to limitations on potency and the emergence of drug resistance seen with the use of currently available anti-retroviral agents in monotherapy and two-drug regimens, triple-combination regimens could represent a promising approach to maximize anti-viral activity, maintain long-term efficacy, and reduce incidence of drug resistance. Investigators performed a randomized study comparing AZT+zalcitabine to AZT+zalcitabine+saquinavir. HIV.csv has data on time from administration of treatment (in days) until the CD4 count dropped to a prespecified level, along with drug and status indicators, for 34 patients.
+
+(a) Is there enough evidence to say that there is a difference in the distribution of the times at which patient’s CD4 reaches the prespecified level for the two treatments? State the hypotheses, test statistic, p-value, and your conclusion.
+
+```{r}
+survdiff(Surv(Time, Status) ~ Drug, data = HIV)
+```
+
+$H_0$: $S_{Drug = NoSaq}(t) = S_{Drug = Saq}(t)$ for all t.
+
+$H_a$: $S_{Drug = NoSaq}(t) \neq S_{Drug = Saq}(t)$ for some t.
+
+test statistic:
+
+using the Mantel-Cox:
+
+```{r}
+1.140 + 0.729 
+```
+
+p-value：
+
+```{r}
+1 - pchisq(1.869, df = 1)
+```
+
+Since the p-value is greater than 0.05, there is no significant evidence that there is a difference in the survival of the times at which patient’s CD4 reaches the prespecified level for the two treatments.
+
+(b) Find a point and interval estimate of the hazard ratio for the two treatments. Which treatment group is at a higher risk of having their CD4 count drop to the prespecified level?
+
+HR point estimate:
+
+```{r}
+(14/10.5)/(13/16.5)
+```
+
+HR 95% CI:
+
+```{r}
+# Left endpoint:
+1.692308*exp(-1.96*sqrt(1/10.5 + 1/16.5))
+# Right endpoint:
+1.692308*exp(1.96*sqrt(1/10.5 + 1/16.5))
+```
+
+The group without Saq treatment is at higher risk of having their CD4 count drop to the prespecified level. However, the 95% CI does include 1, which means that we do not have statistically significant evidence to say that.
+
+(c) Is the conclusion of the test in (a) consistent with the result in (b)? Briefly explain.
+
+Yes, since the 95% CI for the HR encompasses 1, we do not have statistically significant evidence that there is a difference in the distribution of the times at which patient’s CD4 reaches the prespecified level for the two treatments.
+
+2. Leaders.csv contains data on 472 leaders of countries. For each leader, the following variables were recorded in 1987:
+
+`Years`: Number of years in power (leaders in power for < 1 year were coded as 0)
+
+`Lost`: How leader lost power: 0=still in power in 1987, 1=constitutional exit, 2=death by natural causes, 3=non-constitutional exit
+
+`Manner`: How leader reached power: 0=constitutionally, 1=not constitutionally
+
+`Start`: Year of entry into power (only spells that began in 1960 or later were included)
+
+`Military`: Leader’s background: 1=military, 0=civilian
+
+`Age`: Leader’s age, in years, at time of entry into power
+
+`Conflict`: Level of ethnic conflict: 1=medium/high, 0=low
+
+`LogInc`: Natural log of GNP per capita (dollar equivalent) in 1973
+
+`Growth`: Average annual rate of per capita GNP growth between 1965-1983
+
+`Population`: Population in millions (year not indicated)
+
+`Land`: Area in thousands of square kilometers
+
+`Literacy`: Percent literate (year not indicated)
+
+`Region`: 0=Middle East, 1=Africa, 2=Asia, 3=Latin America (Australia, Europe, and North America was omitted from this data)
+
+(a) First, create a status variable: `Leaders$Status = as.numeric(Leaders$Lost > 0)` Graph the Kaplan-Meier curve for the Years variable, specifying conf.type=‘plain’. If you use the base package plot function, you will notice something a little strange at x=0. This is because there are times coded as 0; no need to worry about this (if you like, there is a survfit parameter that can force the curve to start at y=1).
+
+```{r}
+Leaders$Status = as.numeric(Leaders$Lost > 0)
+```
+
+```{r}
+KM <- survfit(Surv(Years, Status) ~ 1 , data = Leaders)
+plot(KM, conf.type = "plain", col = "blue", xlab="Years", ylab="Survival", xlim = c(0, 30))
+```
+
+(b) Graph Kaplan-Meier curves of Years, stratified by the Manner in which the leader reached power. Based on the graph (without C.I.’s, otherwise it is too difficult to read), do you think there is enough evidence to say that the distributions are not identical? Briefly explain.
+
+```{r}
+KM <- survfit(Surv(Years, Status) ~ Manner , data = Leaders)
+plot(KM, conf.int = FALSE, lty=1:2, col = c("blue", "red"), xlim = c(0,30))
+```
+
+Yes, I think there is enough evidence to say that the survival are not identical since the two survival curves interwine with each other.
+
+(c) Now, carry out a formal test of the question in (b).
+
+```{r}
+survdiff(Surv(Years, Status) ~ Manner, data = Leaders)
+```
+
+$H_0$: $S_{Manner = 0}(t) = S_{Manner = 1}(t)$ for all t.
+
+$H_a$: $S_{Manner = 0}(t) \neq S_{Manner = 1}(t)$ for some t.
+
+test statistics:
+
+```{r}
+0.879 + 1.746
+```
+
+p-value:
+
+```{r}
+1 - pchisq(2.625, df = 1)
+```
+
+Since the p-value is larger than 0.05, there is no statistically significant evidence that the two survival are not identical.
+
+(d) Illustrate that a comparison of the median years in power might show a different conclusion from the one obtained in (c). Why is this not contradictory?
+
+```{r}
+summary(KM)
+```
+
+Median years in power for `Manner` = 0: 4, [4, 5]
+
+Median years in power for `Manner` = 1: 3, [2, 4]
+
+In this case, the comparison between median years in power actually tells us that we do have enough evidence to say that the two distributions are not identical since the two CIs does not intersect. This does not contradict with (c) because comparing median does not serve to comparing the entire Survival. The two survival could be very similar but different at the median.
+
+(e) Give an example of a scenario where the medians might be very similar, but the survival distributions very different (i.e., describe what the graph of the survival curves could look like, or make a graph in R to help).
+
+```{r}
+curve(1 - pnorm(x, 50, 10), from = 0, to = 100, ylim=c(0, 1), ylab="Survival", xlab="Years", col = "blue")
+curve(1 - pnorm(x, 50, 100), add=TRUE, lty=2, col = "red")
+```
+
+(f) Perform a Mantel-Cox log-rank test of Years by Region.
+
+```{r}
+survdiff(Surv(Years, Status) ~ Region, data = Leaders)
+```
+
+test statistics:
+
+```{r}
+1.311 + 7.874 + 0.291 + 19.051
+```
+
+p-value:
+
+```{r}
+1 - pchisq(28.527, df = 3)
+```
+
+Since the p-value is smaller than 0.05, we have enough evidence to say that the survival curvesfor different regions are not identical.
+
+(g) Which of the regions are driving your conclusion in (f)? Explain how you can tell.
+
+`Region` = 3. Since in chi-square the larger the parameter, the smaller the p-value, `Region` = 3 has the largest $\frac{(O-E)^2}{E}$, it contributes the most to the small p-value and our conclusion.
+
+(h) Create a categorical Literacy variable with 5 levels (0-20, 20-40, 40-60, 60-80, 80-100) by typing: `Leaders$LitCat = cut( Leaders$Literacy , c(0,20,40,60,80,100) )` Confirm with a log-rank test that LitCat is significantly related to the duration of leaders. Even though the log-rank test does not technically provide this, what is the general direction you see in the relationship between literacy and duration.
+
+```{r}
+Leaders$LitCat = cut(Leaders$Literacy, c(0,20,40,60,80,100))
+```
+
+```{r}
+survdiff(Surv(Years, Status) ~ LitCat, data = Leaders)
+```
+
+test statistics:
+
+```{r}
+3.191 + 0.316 + 3.864 + 4.113 + 2.266
+```
+
+p-value:
+
+```{r}
+1 - pchisq(13.75, df = 4)
+```
+
+Since p-value is smaller than 0.05, we have enough evidence to say that the survival are different amount to `LitCat`.
+
+The general direction is that median Literacy enjoy longer survival.
+
+(i) Does `LitCat` maintain its significance in the presence of Manner? Check by performing a stratified log-rank test. Does `LitCat` maintain its significance in the presence of Region? Check by performing a stratified log-rank test. Make a table of LitCat by Region: table( `Leaders$Region`, `Leaders$LitCat`) This table gives an indication of the extent to which Region acts as a confounding variable in the Years by LitCat relationship. Briefly explain.
+
+`Manner`: 
+
+```{r}
+survdiff(Surv(Years, Status) ~ LitCat + strata(Manner), data = Leaders)
+```
+
+test statistics: 
+
+```{r}
+3.79 + 0.42 + 4 + 4.27 + 3.04
+```
+
+p-value:
+
+```{r}
+1 - pchisq(15.52, df = 4)
+```
+
+`Region`:
+
+```{r}
+survdiff(Surv(Years, Status) ~ LitCat + strata(Region), data = Leaders)
+```
+
+test statistics: 
+
+```{r}
+5.79e-05 + 3.91e-01 + 1.54e+00+ 2.43e+00 + 8.28e-01
+```
+
+p-value:
+
+```{r}
+1 - pchisq(5.189058, df = 4)
+```
+
+```{r}
+table(Leaders$Region, Leaders$LitCat)
+```
+
+LitCat maintains significance in the prescene of `Manner`, but does not maintain significance in the prescene of `Region`.
+
+(j) Why did we have to create LitCat in order to explore the relationship between Years and Literacy via a log-rank test?
+
+This is because a log-rank test is used for comparing survival of different groups. Originally, `Literacy` is a numerical variable and thus would generate a large amount of groups. Now by turning it into a categorical variable, we only have 5 groups.
+
+(k) Fit a Weibull accelerated failure time model of Years by Literacy. Note: Times of exactly 0 are not accepted by survreg, so add a tiny amount to Years by typing: `m = survreg(Surv(Years+0.001 , Status) ∼ Literacy , dist = ‘weibull’ , data=Leaders)`. Does the direction of the relationship agree with that found using LitCat? Is the relationship between Literacy and Years significant? State the p-value.
+
+```{r}
+m = survreg(Surv(Years+0.001 , Status) ~ Literacy , dist = "weibull", data=Leaders)
+summary(m)
+```
+
+The direction does not agree with that found by using `LitCat`. Since the p-value is smaller than 0.05, we do have statistically significant evidence for the relationship.
+
+(l) What does the model in (k) predict for the mean leadership spell for a nation with 70% literacy? 80% literacy? Consider the ratio of these two predictions for the mean: how can we obtain this ratio using the coefficients in the model?
+
+```{r}
+S70 = function(x) 1 - pweibull(x , 1/2.61, exp(2.52126 - 0.01380 * 70))
+integrate( S70 , 0 , Inf )
+```
+
+```{r}
+S80 = function(x) 1 - pweibull(x , 1/2.61, exp(2.52126 - 0.01380 * 80))
+integrate( S80 , 0 , Inf )
+```
+
+```{r}
+15.5111/17.80636
+```
+
+```{r}
+exp(-0.01380*10)
+```
+
+(m) Does Literacy maintain its significance once we control for Region? Note: Since Region is coded as 0 to 3, make sure that it is treated as a categorical variable, by using factor(Region), that is, type: `m = survreg( Surv(Years+0.001 , Status) ∼ Literacy + factor(Region) , dist = ‘weibull’ , data=Leaders )`
+
+```{r}
+m = survreg(Surv(Years+0.001, Status) ~ Literacy + factor(Region), dist = "weibull", data=Leaders)
+summary(m)
+```
+
+since the p-value is larger than 0.05, `Literacy` does not maintain its significance.
+
+3. Consider the following small survival data set broken into two groups:
+
+Group 1: 2, 6+, 7, 12, 16+
+
+Group 2: 7, 11, 15+, 18, 25+
+
+(a) How many 2-by-2 tables will be required to carry out the log-rank test?
+
+5
+
+(b) Make the first two of these tables.
+
+```{r}
+table_f <- life_table <- data.frame(`Interval(0,2]` = c("Group 1", "Group 2", "Total"), Failed = c(1, 0, 1), `Didn't Fail` = c(4, 5, 9), Total = c(5, 5, 10))
+table_f
+```
+
+```{r}
+table_s <- life_table <- data.frame(`Interval(2,7]` = c("Group 1", "Group 2", "Total"), Failed = c(1, 1, 2), `Didn't Fail` = c(2, 4, 6), Total = c(3, 5, 8))
+table_s
+```
+
+(c) Find the expected number of failures in each group for the second table from (b).
+
+$E_1 = \frac{3*2}{8} = 0.75$
+
+$E_2 = \frac{5*2}{8} = 1.25$ 
+
+4. Answer the following True/False questions:
+
+(a) True/False: The log-rank test provides a pointwise comparison of two survival curves.
+
+False
+
+(b) True/False: If the confidence interval for a hazard ratio does not encompass 0, there is enough evidence to conclude that the risk of failure in the two groups being compared is different.
+
+False
+
+(c) True/False: The log-rank test can only check for the significance of a categorical explanatory variable.
+
+True
+
+(d) True/False: Accelerated failure time models are often built on a log-scale to ensure that time is positive.
+
+True
+
+(e) True/False: The Normal model is built on a log-scale.
+
+False
+
+(f) True/False: In a Weibull accelerated failure time model, covariates affect the scale parameter, but not the shape parameter.
+
+True
+
+(g) True/False: In an accelerated failure time model, the effect of covariates is multiplicative.
+
+False
+
+(h) True/False: The natural log of each coefficient in an accelerated failure time model is interpreted as a “time ratio”, e.g., as a multiplier of mean survival time.
+
+False
+
+(i) True/False: An advantage of using a Log-Normal model is that its hazard function can be non-monotonic.
+
+True

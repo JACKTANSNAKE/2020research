@@ -1,0 +1,133 @@
+---
+title: "Quiz_#2_Response_Jack_Tan"
+author: "JACKTANSNAKE"
+date: "2021/2/13"
+output: html_document
+---
+
+```{r}
+library(survival)
+library(tidyverse)
+```
+
+```{r}
+BreastCancer = read.csv( 'https://www.macalester.edu/~addona/BreastCancer.csv' )
+```
+
+## 1.
+
+### a.
+
+```{r}
+KM <- survfit(Surv(Time, Status) ~ Stain , data = BreastCancer)
+summary(KM)
+```
+
+95% CI for 60 months for $Stain = HPA_{negative}$: [0.671, 1.000]
+
+95% CI for 60 months for $Stain = HPA_{positive}$: [0.384, 0.736]
+
+Since the two CIs intersect with each other, we do not have significant evidence that there are difference in the 5-year (60-month) survival probability for
+women with negative / positive HPA stains.
+
+### b.
+
+```{r}
+survdiff(Surv(Time, Status) ~ Stain, data = BreastCancer)
+```
+
+$H_0$: $S_{Stain = HPA_{positive}}(t) = S_{Stains = HPA_{negative}}(t)$ for all t.
+
+$H_a$: $S_{Stain = HPA_{positive}}(t) \neq S_{Stains = HPA_{negative}}(t)$ for some t.
+
+using the Hanzel-Cox method:
+
+test statistics:
+
+```{r}
+2.18 + 1.27
+```
+
+p-value:
+
+```{r}
+1 - pchisq(3.45, df = 1)
+```
+
+Since the p-value is larger than 0.05, we do not have enough evidence to say that the $HPA_{negative}$ and
+$HPA_{positive}$ groups have different survival experiences.
+
+### c.
+
+HR:
+
+```{r}
+(5/9.57)/(21/16.43)
+```
+
+```{r}
+# Lower endpoint:
+0.4087675*exp(-1.96*sqrt(1/9.57 + 1/16.43))
+# Upper endpoint:
+0.4087675*exp(1.96*sqrt(1/9.57 + 1/16.43))
+```
+
+The confidence interval is [0.1842196, 0.9070198].
+
+### d.
+
+The confidence interval from c. does not agree with the conclusion from b.. Since the confidence interval in c. does not encompass 1, it means that patients with HPA negative results will always experience shorter survival than patients with HPA positive results. Thus, the answers from b. and c. do not agree.
+
+## 2.
+
+Since all data points are exact, at each time point t we would have at least 1 fail out of n trials, with each fail having risk of the survival at the time point. Thus, at each time point t, the process is equvalent to a binomial process with n and S(k) as parameters. However, since the estimated survival for each time point does not add to 1 right now, we have to normalize all the estimated survival by dividing the sample size of n. Thus we say that when there is no censoring present in data, Ŝ(t) is proportional to a Binomial random variable at any time point t.
+
+## 3.
+
+```{r}
+life_table <- data.frame(Interval = c("0-5", "5-10", "10-15", "15-20"), Failed = c(4,8,20,16), Censored = c(10,6,20,16), Alive_at_start = c(100,86,72,32), at_risk = c(0,0,0,0), Interval_Failure_rate = c(0,0,0,0), Interval_Servival_rate = c(0,0,0,0), Survival_at_left_end_pt = c(1,0,0,0))
+
+for (i in 1:4){
+  life_table[i, 5] = life_table[i, 4] - life_table[i, 3]/2
+}
+
+life_table <- life_table %>%
+  mutate(Interval_Failure_rate = Failed/at_risk) %>%
+  mutate(Interval_Servival_rate = 1 - Interval_Failure_rate)
+for (i in 1:3){
+  life_table[i+1, 8] = life_table[i, 8] * life_table[i, 7]
+}
+life_table
+```
+
+## 4.
+
+True
+
+## 5.
+
+False
+
+## 6.
+
+True
+
+## 7.
+
+False
+
+## 8.
+
+False
+
+## 9.
+
+True
+
+## 10.
+
+False
+
+
+
+
