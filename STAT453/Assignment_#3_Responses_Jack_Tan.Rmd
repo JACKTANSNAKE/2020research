@@ -111,9 +111,8 @@ f(t) &= \frac{d}{dt}F(t)\\
  &= - \frac{d}{dt}S(t)\\
 h(t) &= \frac{f(t)}{S(t)}\\
  &= \frac{-\frac{d}{dt}S(t)}{S(t)}\\
- &= frac{d}{dt}log\ S(t)
+ &= \frac{d}{dt}log\ S(t)
 \end{align*}
-
 (d) We can re-arrange the expression in (c) as follows: $\int_{0}^{t} h(s)ds = −log \ S(t)$ Show that this expression holds at t = 0. What does the above expression become when $t \rightarrow \infty$? In words, express what this implies about any hazard function (if it is to be valid). Note: The cumulative hazard is defined as the left-hand side of the above expression, that is, cumulative hazard at $t = \int_{0}^{t} h(s)ds$. Although it can be difficult to interpret, the cumulative hazard arises frequently in survival analysis.
 
 When t = 0,
@@ -179,7 +178,6 @@ n is a constant and it does not affect S(k).
 
 (d) Fit a Weibull model to this data and graph the estimated hazard function. By looking at this graph, would you say that it indicates that there is “wear and tear” on the cell over time? Briefly explain.
 
-
 ```{r}
 survreg(Surv(Time)~1, dist='weibull' , data=Cell)
 ```
@@ -192,6 +190,8 @@ hweibull <- function(x, a, b) dweibull(x, shape = a, scale = b)/(1 - pweibull(x,
 
 curve(hweibull(x, a, b), from = 0, to = 1550, ylab="Hazard" , xlab="Days")
 ```
+
+Yes, there is. The battery has higher probability of failing as the days increases, given that it has not failed up to that point.
 
 5. Answer the following conceptual short-answer questions:
 
