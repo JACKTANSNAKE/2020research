@@ -1,0 +1,79 @@
+---
+title: "Lab_#5_Response_Jack_Tan"
+author: "JACKTANSNAKE"
+date: "2021/2/17"
+output: html_document
+---
+
+Data description: `UNMissions.csv` has data on 54 United Nations (UN) Peacekeeping Missions from 1948 to 2001. For each mission, the following variables were recorded:
+
+`Name`: An identifier label for the mission
+
+`Duration`: Length of the mission in months
+
+`Censored`: 0=exact (mission had ended) ; 1=censored (mission had not ended)
+
+`CivilWar`: Was the mission in response to a civil war? (0=no ; 1=yes)
+
+`InterState`: Was the mission in response to an interstate conflict? (0=no ; 1=yes)
+
+`Troops`: Number of troops deployed during mission
+
+`Expend`: Amount spent on mission (U.S. dollars)
+
+`Deaths`: Number of recorded deaths during mission
+
+`Area`: Size of region for which mission was deployed (in square-miles, I think)
+
+`Borders`: Number of borders present in region where mission was deployed
+
+Note: For some missions, both CivilWar and InterState are 0. These missions are said to be in response to an “internationalized civil war” (civil wars involving more than 1 government). Reading the data into R and loading survival package: Type the following commands into your R Markdown file:
+
+```{r}
+UNMissions = read.csv( "https://www.macalester.edu/~addona/UNMissions.csv")
+library(survival)
+library(tidyverse)
+```
+
+1. Fit a log-normal accelerated failure time (AFT) model for Duration which uses InterState. Is the relationship statistically significant? Graph the estimated survival curves over the range 0 to 600 months.
+
+```{r}
+m = survreg(Surv(Duration, (1 - Censored)) ~ InterState, dist = "lognormal", data = UNMissions)
+summary(m)
+```
+
+Since the p-value is smaller than 0.05, there is enough evidence that the relationship between `Duration` and `InterState` is statistically significant.
+
+```{r}
+curve(1 - plnorm(x, 3.408 + 1.580, 1.39), from = 0, to = 600, ylim=c(0, 1), ylab="Survival", xlab="Months", col = "blue")
+curve(1 - plnorm(x, 3.408, 1.39), add=TRUE, lty=2, col = "red")
+```
+
+2. Using the cut function, create a variable, ExpCat, which categorizes missions into the following cost groups: (0,25 million], (25 million, 150 million], (150 million,750 million], or (750 million,4 billion]. Suppose we want to assess whether the addition of ExpCat is worthwhile in a model that already contains InterState (assuming it is still a log-normal model). Can this be done by simply looking at a p-value in the summary of the model? Briefly explain.
+
+
+3. Carry out a likelihood ratio test to answer whether it is worthwhile to add ExpCat to a model which already contains InterState (still assuming a log-normal). State the hypotheses, test statistic, p-value, and your conclusion.
+
+4. Now make a log-normal model for Duration which uses InterState, ExpCat, and Troops. Graph survival curves, corresponding to InterState = 0 and InterState = 1, for a mission which cost 500 million dollars and required the mean number of troops. Note: There is missing data in the Troops variables, so you can type: mean( UNMissions$Troops , na.rm=TRUE ) to obtain its mean value.
+
+
+5. Compare the graphs from 1. and 4., and briefly state what happened. How does this relate to the p-value on InterState in the model from 4.?
+
+
+6. Now fit two models (a Weibull and a log-normal) for Duration which only use the CivilWar variable.
+
+(a) Print out a summary of the Weibull model, and explain what the p-value on the Log(scale) parameter tells us.
+
+(b) What does the coefficient on CivilWar in the Weibull model tell us about the estimated mean durations of missions in response to a civil war, compared to those not in response to a civil war.
+
+(c) Compare the p-values on CivilWar in the Weibull and log-normal models.
+
+(d) Now, compare the adequacy of the Weibull and log-normal models using graphs of their Cox-Snell residuals.
+
+(e) Does your conclusion from (d) agree with a comparison of the AICs of the Weibull and log-normal models?
+
+(f) Could we have compared the Weibull and log-normal models using a likelihood ratio test? If so, carry out the test, otherwise explain why we cannot use this test.
+
+7. Below is a general question unrelated to the UNMissions data: We showed that for an Exponential distribution with parameter λ: log( − log( S(t) ) ) = log( λ ) + log( t ) Carefully explain how we can use this result to test the adequacy of any parametric model, be it Exponential or not.
+
+NOTE: This is exactly the sort of conceptual question which can appear on our final exam, so it is worthwhile to make sure that you can understand and articulate the reasoning.
